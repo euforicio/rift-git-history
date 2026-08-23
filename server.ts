@@ -27,9 +27,6 @@ async function repositoryForThread(
   if (!environment.path) {
     throw new RepositoryUnavailableError("The thread environment has no workspace path yet.");
   }
-  if (!environment.isGitRepo) {
-    throw new RepositoryUnavailableError("The thread environment is not a Git repository.");
-  }
   if (environment.status !== "ready") {
     throw new RepositoryUnavailableError(`The thread environment is ${environment.status}.`);
   }

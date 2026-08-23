@@ -7,7 +7,7 @@ import type { HistoryPage } from "./contracts";
 import plugin from "./server";
 
 describe("Git history server", () => {
-  it("treats a non-Git environment as a normal unavailable state", async () => {
+  it("checks the host when cached environment metadata says non-Git", async () => {
     const thread = {
       ...makeThreadResponse({
         id: "thread-1",
@@ -33,7 +33,15 @@ describe("Git history server", () => {
         updatedAt: 1,
       },
     };
-    let hostCallCount = 0;
+    const historyPage: HistoryPage = {
+      repoName: "late-init-repo",
+      currentBranch: "main",
+      commits: [],
+      offset: 0,
+      total: 0,
+      hasMore: false,
+      unavailableReason: null,
+    };
     const { bb, harness } = createFakePluginHost({
       pluginId: "git-history",
       sdk: {
@@ -41,10 +49,7 @@ describe("Git history server", () => {
           get: async () => thread,
         },
       },
-      experimental_callHostRpc: async () => {
-        hostCallCount += 1;
-        throw new Error("Host RPC should not run");
-      },
+      experimental_callHostRpc: async () => historyPage,
     });
     plugin(bb);
 
@@ -54,10 +59,20 @@ describe("Git history server", () => {
       limit: 200,
     })) as HistoryPage;
 
-    expect(result.unavailableReason).toBe(
-      "The thread environment is not a Git repository.",
-    );
+    expect(result.repoName).toBe("late-init-repo");
+    expect(result.currentBranch).toBe("main");
+    expect(result.unavailableReason).toBeNull();
     expect(result.commits).toEqual([]);
-    expect(hostCallCount).toBe(0);
+    expect(harness.inspection.experimental_hostRpcCalls).toEqual([
+      {
+        method: "history",
+        hostId: "host-1",
+        input: {
+          repoPath: "/workspace/plain-folder",
+          offset: 0,
+          limit: 200,
+        },
+      },
+    ]);
   });
 });
