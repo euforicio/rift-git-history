@@ -29,16 +29,12 @@ import { Icon } from "@/components/ui/icon";
 import "./app.css";
 
 const PAGE_SIZE = 200;
-const ROW_HEIGHT = 54;
-const LANE_GAP = 14;
-const GRAPH_PADDING = 11;
+const ROW_HEIGHT = 36;
+const LANE_GAP = 16;
+const GRAPH_PADDING = 12;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Git history could not be loaded.";
-}
-
-function shortHash(hash: string): string {
-  return hash.slice(0, 8);
 }
 
 function relativeTime(value: string): string {
@@ -77,7 +73,7 @@ function RefPills({ refs, limit = 2 }: { refs: GitRef[]; limit?: number }) {
     <span className="git-refs" aria-label={refs.map((ref) => ref.name).join(", ")}>
       {visible.map((ref) => (
         <span className={`git-ref ${refClass(ref)}`} key={ref.fullName}>
-          {ref.isHead && <span aria-hidden="true">●</span>}
+          {ref.isHead && <Icon name="Target" aria-hidden="true" />}
           {ref.name}
         </span>
       ))}
@@ -96,8 +92,19 @@ function laneClass(lane: number): string {
   return `git-lane-${lane % 6}`;
 }
 
-function GraphCell({ row, width }: { row: GraphRow; width: number }) {
+function GraphCell({
+  row,
+  width,
+  isMerge,
+  isHead,
+}: {
+  row: GraphRow;
+  width: number;
+  isMerge: boolean;
+  isHead: boolean;
+}) {
   const middle = ROW_HEIGHT / 2;
+  const emphasized = isMerge || isHead;
   return (
     <svg
       className="git-graph-cell"
@@ -154,16 +161,24 @@ function GraphCell({ row, width }: { row: GraphRow; width: number }) {
           <path
             key={`edge-${index}`}
             className={laneClass(edge.toLane)}
-            d={`M ${fromX} ${middle} C ${fromX} ${middle + 12}, ${toX} ${middle + 9}, ${toX} ${ROW_HEIGHT}`}
+            d={`M ${fromX} ${middle} C ${fromX} ${middle + 8}, ${toX} ${middle + 7}, ${toX} ${ROW_HEIGHT}`}
           />
         );
       })}
       <circle
-        className={`${laneClass(row.commitLane)} git-commit-node`}
+        className={`${laneClass(row.commitLane)} git-commit-node ${emphasized ? "git-commit-node-ring" : "git-commit-node-solid"}`}
         cx={laneX(row.commitLane)}
         cy={middle}
-        r={4}
+        r={emphasized ? 5.25 : 4.25}
       />
+      {isMerge && (
+        <circle
+          className={`${laneClass(row.commitLane)} git-commit-node-core`}
+          cx={laneX(row.commitLane)}
+          cy={middle}
+          r={1.7}
+        />
+      )}
     </svg>
   );
 }
@@ -240,9 +255,13 @@ function CommitList({
           const commit = commits[virtualRow.index];
           const graphRow = graphRows[virtualRow.index];
           if (!commit || !graphRow) return null;
+          const isMerge = commit.parents.length > 1;
+          const isHead = commit.refs.some((ref) => ref.isHead);
           return (
             <button
               className={`git-commit-row ${matches[virtualRow.index] ? "git-commit-match" : ""}`}
+              data-head={isHead || undefined}
+              data-merge={isMerge || undefined}
               key={commit.hash}
               onClick={() => onSelect(commit)}
               role="listitem"
@@ -251,18 +270,20 @@ function CommitList({
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >
-              <GraphCell row={graphRow} width={graphWidth} />
+              <GraphCell
+                row={graphRow}
+                width={graphWidth}
+                isMerge={isMerge}
+                isHead={isHead}
+              />
               <span className="git-commit-copy">
-                <span className="git-commit-subject-line">
-                  <span className="git-commit-subject">{commit.subject || "No commit message"}</span>
-                  <RefPills refs={commit.refs} />
+                <span className="git-commit-subject" title={commit.subject}>
+                  {commit.subject || "No commit message"}
                 </span>
-                <span className="git-commit-meta">
-                  <span>{commit.authorName}</span>
-                  <span aria-hidden="true">·</span>
+                <RefPills refs={commit.refs} />
+                <span className="git-commit-inline-meta">
+                  <span className="git-commit-author">{commit.authorName}</span>
                   <time dateTime={commit.authorDate}>{relativeTime(commit.authorDate)}</time>
-                  <span aria-hidden="true">·</span>
-                  <span className="git-hash">{shortHash(commit.hash)}</span>
                 </span>
               </span>
             </button>
@@ -542,22 +563,28 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
     <div className="git-history-panel">
       <div className="git-toolbar">
         <div className="git-repository">
-          <Icon name="FolderGit" />
-          <span className="git-repository-copy">
-            <strong>{page?.repoName ?? "Git history"}</strong>
-            <span>{page?.currentBranch ?? "Detached HEAD"}</span>
-          </span>
+          <Icon name="ChevronDown" />
+          <strong>Graph</strong>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          aria-label="Refresh Git history"
-          disabled={initialLoading}
-          onClick={() => void loadHistory(true)}
-        >
-          <Icon name={initialLoading ? "Loading" : "ArrowReloadHorizontal"} className={initialLoading ? "animate-spin" : ""} />
-        </Button>
+        <div className="git-toolbar-actions">
+          <span
+            className="git-history-scope"
+            title={`${page?.repoName ?? "Repository"} · ${page?.currentBranch ?? "Detached HEAD"}`}
+          >
+            <Icon name="GitBranch" />
+            All
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            aria-label="Refresh Git history"
+            disabled={initialLoading}
+            onClick={() => void loadHistory(true)}
+          >
+            <Icon name={initialLoading ? "Loading" : "ArrowReloadHorizontal"} className={initialLoading ? "animate-spin" : ""} />
+          </Button>
+        </div>
       </div>
 
       <div className="git-search-wrap">
@@ -565,7 +592,7 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Find in loaded history"
+          placeholder="Search commits"
           aria-label="Find a loaded commit"
         />
         {query && (
@@ -610,10 +637,8 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
       )}
 
       <div className="git-footer">
-        <span>
-          {commits.length.toLocaleString()} of {(page?.total ?? 0).toLocaleString()} commits
-        </span>
-        <span>all refs</span>
+        <span>{(page?.total ?? 0).toLocaleString()} commits</span>
+        <span>All refs</span>
       </div>
     </div>
   );
