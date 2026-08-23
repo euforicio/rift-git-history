@@ -1,0 +1,535 @@
+.git-history-panel,
+.git-detail {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.git-toolbar {
+  height: 48px;
+  flex: 0 0 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.git-repository {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.git-repository > svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  color: var(--muted-foreground);
+}
+
+.git-repository-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.git-repository-copy strong,
+.git-repository-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-repository-copy strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.git-repository-copy span {
+  margin-top: 2px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+
+.git-search-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.git-search-wrap > svg {
+  position: absolute;
+  z-index: 1;
+  top: 16px;
+  left: 19px;
+  width: 14px;
+  height: 14px;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+.git-search-wrap input {
+  height: 30px;
+  padding-left: 29px;
+  padding-right: 38px;
+  font-size: 11px;
+  background: color-mix(in oklab, var(--muted) 48%, transparent);
+}
+
+.git-search-count {
+  position: absolute;
+  top: 14px;
+  right: 17px;
+  min-width: 20px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  text-align: center;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.git-history-scroll {
+  position: relative;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.git-history-virtual {
+  position: relative;
+  min-width: 100%;
+}
+
+.git-commit-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 65%, transparent);
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.git-commit-row:hover,
+.git-commit-row:focus-visible {
+  outline: none;
+  background: var(--state-hover, color-mix(in oklab, var(--muted) 58%, transparent));
+}
+
+.git-commit-row:focus-visible {
+  box-shadow: inset 2px 0 0 var(--ring);
+}
+
+.git-commit-row.git-commit-match {
+  background: color-mix(in oklab, var(--accent) 72%, transparent);
+}
+
+.git-graph-cell {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.git-graph-cell line,
+.git-graph-cell path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+}
+
+.git-commit-node {
+  fill: var(--background);
+  stroke: currentColor;
+  stroke-width: 2.2;
+}
+
+.git-lane-0 { color: var(--chart-1, var(--primary)); }
+.git-lane-1 { color: var(--chart-2, var(--destructive)); }
+.git-lane-2 { color: var(--chart-3, var(--accent-foreground)); }
+.git-lane-3 { color: var(--chart-4, var(--muted-foreground)); }
+.git-lane-4 { color: var(--chart-5, var(--secondary-foreground)); }
+.git-lane-5 { color: var(--primary); }
+
+.git-commit-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 10px 0 4px;
+}
+
+.git-commit-subject-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.git-commit-subject {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.git-refs {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.git-ref {
+  max-width: 112px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  overflow: hidden;
+  flex: 0 1 auto;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 1px 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.git-ref-head {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.git-ref-local {
+  border-color: color-mix(in oklab, var(--primary) 25%, transparent);
+  background: color-mix(in oklab, var(--primary) 11%, transparent);
+  color: var(--primary);
+}
+
+.git-ref-remote {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.git-ref-tag {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.git-ref-muted {
+  border-color: var(--border);
+  color: var(--muted-foreground);
+}
+
+.git-commit-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.git-commit-meta > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.git-hash,
+.git-detail-hash {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.git-footer {
+  height: 27px;
+  flex: 0 0 27px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 9px;
+}
+
+.git-loading-more {
+  position: sticky;
+  bottom: 6px;
+  width: max-content;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -28px auto 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--popover, var(--background));
+  color: var(--muted-foreground);
+  box-shadow: 0 3px 12px color-mix(in oklab, var(--foreground) 10%, transparent);
+  font-size: 9px;
+}
+
+.git-loading-more svg,
+.git-detail-loading svg,
+.git-state > svg {
+  width: 14px;
+  height: 14px;
+}
+
+.git-state {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 24px;
+  color: var(--muted-foreground);
+  text-align: center;
+  font-size: 11px;
+}
+
+.git-state > svg {
+  width: 20px;
+  height: 20px;
+}
+
+.git-state strong {
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.git-state-error > svg {
+  color: var(--destructive);
+}
+
+.git-detail-header {
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  grid-template-columns: 28px 1fr 28px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.git-detail-header-title {
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.git-detail-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.git-detail-summary {
+  padding: 16px 14px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.git-detail-summary h2 {
+  margin: 10px 0 6px;
+  font-size: 15px;
+  font-weight: 620;
+  line-height: 1.35;
+}
+
+.git-detail-byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+
+.git-detail-hash {
+  display: block;
+  max-width: 100%;
+  margin-top: 9px;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: copy;
+  font-size: 9px;
+}
+
+.git-commit-body {
+  margin: 13px 0 0;
+  white-space: pre-wrap;
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.git-detail-loading,
+.git-inline-error,
+.git-empty-files,
+.git-patch-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 14px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+
+.git-inline-error {
+  color: var(--destructive);
+}
+
+.git-files,
+.git-patch {
+  border-bottom: 1px solid var(--border);
+}
+
+.git-section-heading {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px;
+  background: color-mix(in oklab, var(--muted) 45%, transparent);
+  color: var(--muted-foreground);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.git-section-heading > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-file-row {
+  width: 100%;
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+  padding: 5px 11px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.git-file-row:hover,
+.git-file-selected {
+  background: var(--state-hover, color-mix(in oklab, var(--muted) 58%, transparent));
+}
+
+.git-file-status {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.git-file-status-added,
+.git-file-status-copied {
+  color: var(--primary);
+}
+
+.git-file-status-deleted {
+  color: var(--destructive);
+}
+
+.git-file-status-renamed,
+.git-file-status-type-changed {
+  color: var(--accent-foreground);
+}
+
+.git-file-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.git-file-stats {
+  display: flex;
+  gap: 5px;
+  color: var(--muted-foreground);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.git-file-stats span:first-child {
+  color: var(--primary);
+}
+
+.git-file-stats span:last-child {
+  color: var(--destructive);
+}
+
+.git-patch > div:not(.git-section-heading):not(.git-detail-loading):not(.git-empty-files):not(.git-patch-note) {
+  border-top: 1px solid var(--border);
+}
+
+.git-header-action {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.git-header-action:hover,
+.git-header-action:focus-visible {
+  outline: none;
+  background: var(--state-hover, color-mix(in oklab, var(--muted) 58%, transparent));
+  color: var(--foreground);
+}
+
+.git-header-action svg {
+  width: 15px;
+  height: 15px;
+}
