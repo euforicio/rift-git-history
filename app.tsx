@@ -654,21 +654,9 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
     [commits, query],
   );
 
-  if (diffView) {
-    return (
-      <FileDiffPanel
-        key={diffView.commit.hash}
-        threadId={threadId}
-        commit={diffView.commit}
-        details={diffView.details}
-        initialPath={diffView.path}
-        onBack={() => setDiffView(null)}
-      />
-    );
-  }
-
   return (
-    <div className="git-history-panel">
+    <>
+      <div className="git-history-panel" hidden={diffView !== null}>
       <div className="git-toolbar">
         <div className="git-repository">
           <strong>History</strong>
@@ -769,7 +757,18 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
           <span>{page?.hasMore ? `${(page.total - commits.length).toLocaleString()} more` : "all loaded"}</span>
         </div>
       )}
-    </div>
+      </div>
+      {diffView && (
+        <FileDiffPanel
+          key={diffView.commit.hash}
+          threadId={threadId}
+          commit={diffView.commit}
+          details={diffView.details}
+          initialPath={diffView.path}
+          onBack={() => setDiffView(null)}
+        />
+      )}
+    </>
   );
 }
 

@@ -636,6 +636,10 @@
   font-weight: 400;
 }
 
+.git-history-panel[hidden] {
+  display: none;
+}
+
 .git-history-scroll {
   scrollbar-gutter: auto;
 }
