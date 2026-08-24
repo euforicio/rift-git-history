@@ -282,7 +282,7 @@
 
 .git-commit-inline-meta {
   min-width: 0;
-  display: none;
+  display: flex;
   flex: 0 1 auto;
   align-items: center;
   gap: 6px;
@@ -293,9 +293,38 @@
   white-space: nowrap;
 }
 
-@container (min-width: 720px) {
+@container (max-width: 719px) {
+  .git-commit-copy {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-content: center;
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 1px;
+  }
+
+  .git-commit-subject {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .git-refs {
+    grid-column: 1;
+    grid-row: 2;
+    max-width: 100%;
+  }
+
   .git-commit-inline-meta {
-    display: flex;
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+    max-width: 100%;
+    margin-left: 0;
+  }
+
+  .git-commit-author {
+    max-width: 72px;
   }
 }
 

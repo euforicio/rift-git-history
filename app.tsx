@@ -31,6 +31,9 @@ import "./app.css";
 const PAGE_SIZE = 200;
 const DESKTOP_ROW_HEIGHT = 36;
 const TOUCH_ROW_HEIGHT = 44;
+const NARROW_ROW_HEIGHT = 52;
+const NARROW_TOUCH_ROW_HEIGHT = 60;
+const NARROW_LAYOUT_BREAKPOINT = 720;
 const STANDARD_LANE_GAP = 16;
 const GRAPH_PADDING = 12;
 const MAX_GRAPH_WIDTH = 120;
@@ -48,6 +51,31 @@ function useCoarsePointer(): boolean {
   }, []);
 
   return isCoarse;
+}
+
+function useNarrowElement(ref: { current: HTMLElement | null }): boolean {
+  const [isNarrow, setIsNarrow] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    const update = () => {
+      setIsNarrow(element.clientWidth < NARROW_LAYOUT_BREAKPOINT);
+    };
+    update();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", update);
+      return () => window.removeEventListener("resize", update);
+    }
+
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return isNarrow;
 }
 
 function errorMessage(error: unknown): string {
@@ -235,7 +263,11 @@ function CommitList({
   onSelect: (commit: GitCommitSummary) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const rowHeight = useCoarsePointer() ? TOUCH_ROW_HEIGHT : DESKTOP_ROW_HEIGHT;
+  const isCoarsePointer = useCoarsePointer();
+  const isNarrow = useNarrowElement(scrollRef);
+  const rowHeight = isNarrow
+    ? (isCoarsePointer ? NARROW_TOUCH_ROW_HEIGHT : NARROW_ROW_HEIGHT)
+    : (isCoarsePointer ? TOUCH_ROW_HEIGHT : DESKTOP_ROW_HEIGHT);
   const graphRows = useMemo(() => layoutCommitGraph(commits), [commits]);
   const matches = useMemo(
     () => commits.map((commit) => commitMatches(commit, query)),
