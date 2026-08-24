@@ -29,9 +29,25 @@ import { Icon } from "@/components/ui/icon";
 import "./app.css";
 
 const PAGE_SIZE = 200;
-const ROW_HEIGHT = 36;
+const DESKTOP_ROW_HEIGHT = 36;
+const TOUCH_ROW_HEIGHT = 44;
 const LANE_GAP = 16;
 const GRAPH_PADDING = 12;
+
+function useCoarsePointer(): boolean {
+  const [isCoarse, setIsCoarse] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches,
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia("(pointer: coarse)");
+    const update = () => setIsCoarse(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  return isCoarse;
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Git history could not be loaded.";
@@ -95,22 +111,24 @@ function laneClass(lane: number): string {
 function GraphCell({
   row,
   width,
+  rowHeight,
   isMerge,
   isHead,
 }: {
   row: GraphRow;
   width: number;
+  rowHeight: number;
   isMerge: boolean;
   isHead: boolean;
 }) {
-  const middle = ROW_HEIGHT / 2;
+  const middle = rowHeight / 2;
   const emphasized = isMerge || isHead;
   return (
     <svg
       className="git-graph-cell"
       width={width}
-      height={ROW_HEIGHT}
-      viewBox={`0 0 ${width} ${ROW_HEIGHT}`}
+      height={rowHeight}
+      viewBox={`0 0 ${width} ${rowHeight}`}
       aria-hidden="true"
     >
       {row.topLanes.map((lane) => (
@@ -139,7 +157,7 @@ function GraphCell({
           x1={laneX(lane)}
           y1={middle}
           x2={laneX(lane)}
-          y2={ROW_HEIGHT}
+          y2={rowHeight}
         />
       ))}
       {row.edges.map((edge, index) => {
@@ -153,7 +171,7 @@ function GraphCell({
               x1={fromX}
               y1={middle}
               x2={toX}
-              y2={ROW_HEIGHT}
+              y2={rowHeight}
             />
           );
         }
@@ -161,7 +179,7 @@ function GraphCell({
           <path
             key={`edge-${index}`}
             className={laneClass(edge.toLane)}
-            d={`M ${fromX} ${middle} C ${fromX} ${middle + 8}, ${toX} ${middle + 7}, ${toX} ${ROW_HEIGHT}`}
+            d={`M ${fromX} ${middle} C ${fromX} ${middle + 8}, ${toX} ${middle + 7}, ${toX} ${rowHeight}`}
           />
         );
       })}
@@ -211,6 +229,7 @@ function CommitList({
   onSelect: (commit: GitCommitSummary) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const rowHeight = useCoarsePointer() ? TOUCH_ROW_HEIGHT : DESKTOP_ROW_HEIGHT;
   const graphRows = useMemo(() => layoutCommitGraph(commits), [commits]);
   const matches = useMemo(
     () => commits.map((commit) => commitMatches(commit, query)),
@@ -227,7 +246,7 @@ function CommitList({
   const virtualizer = useVirtualizer({
     count: commits.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
+    estimateSize: () => rowHeight,
     overscan: 12,
   });
   const virtualItems = virtualizer.getVirtualItems();
@@ -238,6 +257,10 @@ function CommitList({
       onLoadMore();
     }
   }, [commits.length, hasMore, lastVisibleIndex, loadingMore, onLoadMore]);
+
+  useEffect(() => {
+    virtualizer.measure();
+  }, [rowHeight, virtualizer]);
 
   return (
     <div className="git-history-scroll" ref={scrollRef} role="list">
@@ -252,40 +275,45 @@ function CommitList({
           const isMerge = commit.parents.length > 1;
           const isHead = commit.refs.some((ref) => ref.isHead);
           return (
-            <button
-              className={`git-commit-row ${matches[virtualRow.index] ? "git-commit-match" : ""}`}
-              data-head={isHead || undefined}
-              data-merge={isMerge || undefined}
+            <div
+              className="git-commit-listitem"
               key={commit.hash}
-              onClick={() => onSelect(commit)}
               role="listitem"
               style={{
                 height: `${virtualRow.size}px`,
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >
-              <GraphCell
-                row={graphRow}
-                width={graphWidth}
-                isMerge={isMerge}
-                isHead={isHead}
-              />
-              <span className="git-commit-copy">
-                <span className="git-commit-subject" title={commit.subject}>
-                  {commit.subject || "No commit message"}
+              <button
+                className={`git-commit-row ${matches[virtualRow.index] ? "git-commit-match" : ""}`}
+                data-head={isHead || undefined}
+                data-merge={isMerge || undefined}
+                onClick={() => onSelect(commit)}
+              >
+                <GraphCell
+                  row={graphRow}
+                  width={graphWidth}
+                  rowHeight={rowHeight}
+                  isMerge={isMerge}
+                  isHead={isHead}
+                />
+                <span className="git-commit-copy">
+                  <span className="git-commit-subject" title={commit.subject}>
+                    {commit.subject || "No commit message"}
+                  </span>
+                  <RefPills refs={commit.refs} />
+                  <span className="git-commit-inline-meta">
+                    <span className="git-commit-author">{commit.authorName}</span>
+                    <time dateTime={commit.authorDate}>{relativeTime(commit.authorDate)}</time>
+                  </span>
                 </span>
-                <RefPills refs={commit.refs} />
-                <span className="git-commit-inline-meta">
-                  <span className="git-commit-author">{commit.authorName}</span>
-                  <time dateTime={commit.authorDate}>{relativeTime(commit.authorDate)}</time>
-                </span>
-              </span>
-            </button>
+              </button>
+            </div>
           );
         })}
       </div>
       {loadingMore && (
-        <div className="git-loading-more">
+        <div className="git-loading-more" role="status">
           <Icon name="Loading" className="animate-spin" />
           Loading older commits
         </div>
@@ -441,6 +469,7 @@ function CommitDetail({
                 onClick={() => void openFile(file.path)}
               >
                 <span className={`git-file-status git-file-status-${file.status}`}>
+                  <span className="sr-only">{file.status}</span>
                   {statusLetter(file.status)}
                 </span>
                 <span className="git-file-path">{file.path}</span>
@@ -588,21 +617,21 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
           aria-label="Find in loaded commits"
         />
         {query && (
-          <span className="git-search-count">
+          <span className="git-search-count" role="status">
             {matchingCount.toLocaleString()} {matchingCount === 1 ? "match" : "matches"}
           </span>
         )}
       </div>
 
       {initialLoading && commits.length === 0 && (
-        <div className="git-state">
+        <div className="git-state" role="status">
           <Icon name="Loading" className="animate-spin" />
           <span>Reading all refs</span>
         </div>
       )}
 
       {error && commits.length === 0 && (
-        <div className="git-state git-state-error">
+        <div className="git-state git-state-error" role="alert">
           <Icon name="AlertCircle" />
           <strong>Git history unavailable</strong>
           <span>{error}</span>
@@ -613,7 +642,7 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
       )}
 
       {!initialLoading && !error && commits.length === 0 && (
-        <div className="git-state">
+        <div className="git-state" role="status">
           <Icon name="FolderGit" />
           <span>This repository has no reachable commits.</span>
         </div>

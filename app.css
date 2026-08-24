@@ -72,8 +72,9 @@
 .git-search-wrap > svg {
   position: absolute;
   z-index: 1;
-  top: 13px;
+  top: 50%;
   left: 16px;
+  transform: translateY(-50%);
   width: 14px;
   height: 14px;
   color: var(--muted-foreground);
@@ -91,8 +92,9 @@
 
 .git-search-count {
   position: absolute;
-  top: 11px;
+  top: 50%;
   right: 15px;
+  transform: translateY(-50%);
   max-width: 72px;
   padding: 1px 5px;
   border-radius: 999px;
@@ -119,11 +121,16 @@
   min-width: 100%;
 }
 
-.git-commit-row {
+.git-commit-listitem {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
+}
+
+.git-commit-row {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: stretch;
   overflow: hidden;
@@ -143,7 +150,7 @@
 }
 
 .git-commit-row:focus-visible {
-  box-shadow: inset 2px 0 0 var(--ring);
+  box-shadow: inset 0 0 0 2px var(--ring);
 }
 
 .git-commit-row.git-commit-match {
@@ -500,8 +507,14 @@
 }
 
 .git-file-row:hover,
-.git-file-selected {
+.git-file-selected,
+.git-file-row:focus-visible {
   background: var(--state-hover, color-mix(in oklab, var(--muted) 58%, transparent));
+}
+
+.git-file-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--ring);
 }
 
 .git-file-status {
@@ -574,4 +587,14 @@
 .git-header-action svg {
   width: 15px;
   height: 15px;
+}
+
+@media (pointer: coarse) {
+  .git-search-wrap input {
+    height: 36px;
+  }
+
+  .git-file-row {
+    min-height: 44px;
+  }
 }
