@@ -1,8 +1,10 @@
 # Git History for bb
 
 Git History adds a compact, read-only commit graph to a thread's right panel.
-It reads every ref in the repository, so the graph includes local branches,
+It reads repository refs, so the graph includes local branches,
 remote-tracking branches, tags, stashes, and shared worktree history.
+
+![Git History panel open in bb](assets/git-history.jpeg)
 
 ## Install
 
@@ -25,7 +27,7 @@ History is also available from the right panel's Actions list.
 
 ## What it shows
 
-- Topologically ordered commits reachable from `git log --all`
+- Topologically ordered commits across repository refs
 - Colored branch and merge lanes
 - Local, remote, tag, stash, and `HEAD` labels
 - Commit author, date, full message, and first-parent changed files
