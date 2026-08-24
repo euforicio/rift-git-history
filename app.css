@@ -33,14 +33,6 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-
-.git-repository > svg {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
-  color: var(--muted-foreground);
 }
 
 .git-repository strong {
@@ -60,16 +52,10 @@
 }
 
 .git-history-scope {
-  gap: 5px;
   padding: 0 5px;
   color: var(--muted-foreground);
   font-size: 12px;
   font-weight: 500;
-}
-
-.git-history-scope svg {
-  width: 15px;
-  height: 15px;
 }
 
 .git-search-wrap {

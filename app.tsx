@@ -563,7 +563,6 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
     <div className="git-history-panel">
       <div className="git-toolbar">
         <div className="git-repository">
-          <Icon name="ChevronDown" />
           <strong>Graph</strong>
         </div>
         <div className="git-toolbar-actions">
@@ -571,8 +570,7 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
             className="git-history-scope"
             title={`${page?.repoName ?? "Repository"} · ${page?.currentBranch ?? "Detached HEAD"}`}
           >
-            <Icon name="GitBranch" />
-            All
+            All refs
           </span>
           <Button
             variant="ghost"
