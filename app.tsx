@@ -37,21 +37,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Git history could not be loaded.";
 }
 
-function relativeTime(value: string): string {
-  const time = Date.parse(value);
-  if (!Number.isFinite(time)) return "unknown date";
-  const seconds = Math.round((time - Date.now()) / 1_000);
-  const absolute = Math.abs(seconds);
-  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-
-  if (absolute < 60) return formatter.format(seconds, "second");
-  if (absolute < 3_600) return formatter.format(Math.round(seconds / 60), "minute");
-  if (absolute < 86_400) return formatter.format(Math.round(seconds / 3_600), "hour");
-  if (absolute < 2_592_000) return formatter.format(Math.round(seconds / 86_400), "day");
-  if (absolute < 31_536_000) return formatter.format(Math.round(seconds / 2_592_000), "month");
-  return formatter.format(Math.round(seconds / 31_536_000), "year");
-}
-
 function exactTime(value: string): string {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "--:--";
@@ -234,8 +219,10 @@ function CommitList({
   });
   const virtualItems = virtualizer.getVirtualItems();
   const lastVisibleIndex = virtualItems.at(-1)?.index ?? 0;
+  const scrollOffset = virtualizer.scrollOffset ?? 0;
+  const firstVisibleIndex = virtualItems.find((item) => item.end > scrollOffset)?.index ?? 0;
   let activeDate: Extract<HistoryListItem, { kind: "date" }> | null = null;
-  for (let index = virtualItems[0]?.index ?? 0; index >= 0; index -= 1) {
+  for (let index = firstVisibleIndex; index >= 0; index -= 1) {
     const item = listItems[index];
     if (item?.kind === "date") {
       activeDate = item;
@@ -263,7 +250,7 @@ function CommitList({
           <div
             className="git-date-header git-date-header-sticky"
             aria-hidden="true"
-            style={{ transform: `translateY(${virtualizer.scrollOffset ?? 0}px)` }}
+            style={{ transform: `translateY(${scrollOffset}px)` }}
           >
             <span>{activeDate.label}</span>
             <span className="git-date-rule" />
@@ -684,19 +671,23 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
     <div className="git-history-panel">
       <div className="git-toolbar">
         <div className="git-repository">
-          <strong>Graph</strong>
+          <strong>History</strong>
+          <span title={`${page?.repoName ?? "Repository"} / ${page?.currentBranch ?? "Detached HEAD"}`}>
+            {page?.repoName ?? "Repository"} / {page?.currentBranch ?? "Detached HEAD"}
+          </span>
         </div>
         <div className="git-toolbar-actions">
           <span
             className="git-history-scope"
-            title={`${page?.repoName ?? "Repository"} · ${page?.currentBranch ?? "Detached HEAD"}`}
+            title="History scope: all refs"
           >
             All refs
+            <Icon name="ChevronDown" aria-hidden="true" />
           </span>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="git-icon-button"
             aria-label="Refresh Git history"
             title="Refresh Git history"
             disabled={initialLoading}
@@ -716,13 +707,15 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Find in loaded commits"
-          aria-label="Find in loaded commits"
+          placeholder="Filter commits"
+          aria-label="Filter commits"
         />
-        {query && (
+        {query ? (
           <span className="git-search-count" role="status">
             {matchingCount.toLocaleString()} {matchingCount === 1 ? "match" : "matches"}
           </span>
+        ) : (
+          <span className="git-search-hint" aria-hidden="true">⌘F</span>
         )}
       </div>
 
@@ -771,9 +764,9 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
 
       {commits.length > 0 && (
         <div className="git-footer">
-          <span>
-            {commits.length.toLocaleString()} of {(page?.total ?? commits.length).toLocaleString()} commits loaded
-          </span>
+          <span>{commits.length.toLocaleString()} commits</span>
+          <span aria-hidden="true">·</span>
+          <span>{page?.hasMore ? `${(page.total - commits.length).toLocaleString()} more` : "all loaded"}</span>
         </div>
       )}
     </div>
