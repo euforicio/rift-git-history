@@ -665,13 +665,6 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
           </span>
         </div>
         <div className="git-toolbar-actions">
-          <span
-            className="git-history-scope"
-            title="History scope: all refs"
-          >
-            All refs
-            <Icon name="ChevronDown" aria-hidden="true" />
-          </span>
           <Button
             variant="ghost"
             size="icon"

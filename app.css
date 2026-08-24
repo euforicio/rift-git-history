@@ -44,21 +44,13 @@
   line-height: 1;
 }
 
-.git-toolbar-actions,
-.git-history-scope {
+.git-toolbar-actions {
   display: flex;
   align-items: center;
 }
 
 .git-toolbar-actions {
   gap: 2px;
-}
-
-.git-history-scope {
-  padding: 0 5px;
-  color: var(--muted-foreground);
-  font-size: 12px;
-  font-weight: 500;
 }
 
 .git-search-wrap {
@@ -1251,26 +1243,6 @@
 .git-toolbar-actions {
   flex: 0 0 auto;
   gap: 3px;
-}
-
-.git-history-scope {
-  height: 22px;
-  gap: 3px;
-  border-radius: 5px;
-  padding: 0 6px;
-  color: var(--gh-secondary);
-  font-size: 11.5px;
-  font-weight: 400;
-}
-
-.git-history-scope:hover {
-  background: var(--gh-active);
-}
-
-.git-history-scope svg {
-  width: 9px;
-  height: 9px;
-  color: var(--gh-quaternary);
 }
 
 .git-search-wrap {
