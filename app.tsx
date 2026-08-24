@@ -107,7 +107,7 @@ function historyListItems(commits: GitCommitSummary[]): HistoryListItem[] {
   return groups.flatMap((group) => [
     {
       kind: "date" as const,
-      key: `date-${group.key}`,
+      key: `date-${group.key}-${group.commits[0]!.commit.hash}`,
       label: group.label,
       count: group.commits.length,
     },
