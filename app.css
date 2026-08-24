@@ -733,6 +733,9 @@
 }
 
 .git-commit-row[data-expanded="true"] {
+  height: auto;
+  min-height: 31px;
+  align-items: start;
   background: var(--gh-accent-tint);
   box-shadow: inset 2px 0 0 var(--gh-accent);
 }
@@ -804,7 +807,18 @@
 }
 
 .git-commit-row[data-expanded="true"] .git-commit-subject {
+  overflow: visible;
+  padding: 7px 0;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
   font-weight: 500;
+  line-height: 1.35;
+}
+
+.git-commit-row[data-expanded="true"] .git-refs,
+.git-commit-row[data-expanded="true"] .git-commit-inline-meta {
+  margin-top: 7px;
 }
 
 .git-commit-row[data-merge="true"] .git-commit-subject,
