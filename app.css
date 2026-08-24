@@ -606,30 +606,30 @@
 
 /* Dense history list */
 .git-history-panel {
-  --gh-surface: #ffffff;
-  --gh-surface-subtle: #fafafa;
-  --gh-surface-sunken: #fafafb;
-  --gh-hover: #f7f7f9;
-  --gh-active: #f5f5f7;
-  --gh-border: #e4e4e8;
-  --gh-hairline: #ececef;
-  --gh-text: #17171a;
-  --gh-code: #26262b;
-  --gh-secondary: #52525b;
-  --gh-tertiary: #84848d;
-  --gh-quaternary: #a0a0aa;
-  --gh-disabled: #c6c6cd;
-  --gh-rail: #d2d6de;
-  --gh-node: #8e9aad;
-  --gh-accent: oklch(0.52 0.11 252);
-  --gh-accent-tint: oklch(0.968 0.012 252);
-  --gh-accent-border: oklch(0.86 0.03 252);
-  --gh-added: oklch(0.5 0.1 150);
-  --gh-removed: oklch(0.53 0.13 25);
-  --gh-modified: oklch(0.55 0.1 75);
-  --gh-tag: oklch(0.44 0.09 300);
-  --gh-tag-bg: oklch(0.97 0.02 300);
-  --gh-tag-border: oklch(0.86 0.04 300);
+  --gh-surface: var(--background);
+  --gh-surface-subtle: var(--secondary);
+  --gh-surface-sunken: var(--surface-recessed, var(--muted));
+  --gh-hover: var(--state-hover, var(--accent));
+  --gh-active: var(--state-active, var(--muted));
+  --gh-border: var(--border);
+  --gh-hairline: var(--border-hairline, var(--border));
+  --gh-text: var(--foreground);
+  --gh-code: var(--foreground);
+  --gh-secondary: var(--muted-foreground);
+  --gh-tertiary: var(--subtle-foreground, var(--muted-foreground));
+  --gh-quaternary: color-mix(in oklab, var(--subtle-foreground, var(--muted-foreground)) 78%, var(--background));
+  --gh-disabled: color-mix(in oklab, var(--subtle-foreground, var(--muted-foreground)) 56%, var(--background));
+  --gh-rail: var(--border);
+  --gh-node: var(--muted-foreground);
+  --gh-accent: var(--primary);
+  --gh-accent-tint: var(--surface-selected, color-mix(in oklab, var(--primary) 12%, var(--background)));
+  --gh-accent-border: var(--surface-selected-border, color-mix(in oklab, var(--primary) 35%, var(--border)));
+  --gh-added: var(--success);
+  --gh-removed: var(--destructive-text, var(--destructive));
+  --gh-modified: var(--warning-text, var(--warning));
+  --gh-tag: var(--pr-merged, var(--primary));
+  --gh-tag-bg: color-mix(in oklab, var(--gh-tag) 10%, var(--background));
+  --gh-tag-border: color-mix(in oklab, var(--gh-tag) 35%, var(--border));
   background: var(--gh-surface);
   color: var(--gh-text);
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, sans-serif;
@@ -888,7 +888,7 @@
 .git-ref-head {
   border-color: var(--gh-accent);
   background: var(--gh-accent);
-  color: #ffffff;
+  color: var(--primary-foreground);
   font-weight: 500;
 }
 
@@ -1175,7 +1175,7 @@
 }
 
 .git-file-strip button[data-active="true"] {
-  background: #f2f2f4;
+  background: var(--gh-active);
   color: var(--gh-text);
 }
 
@@ -1305,7 +1305,7 @@
 }
 
 .git-search-wrap input:hover {
-  border-color: #d4d4d9;
+  border-color: var(--input, var(--gh-border));
 }
 
 .git-search-wrap input:focus-visible {
@@ -1361,7 +1361,7 @@
   border-color: var(--gh-border);
   background: var(--gh-surface);
   color: var(--gh-tertiary);
-  box-shadow: 0 2px 8px rgb(23 23 26 / 8%);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--foreground) 8%, transparent);
 }
 
 .git-state {
