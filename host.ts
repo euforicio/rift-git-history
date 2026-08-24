@@ -12,6 +12,18 @@ import { hostContract } from "./contracts";
 const HISTORY_FIELD_COUNT = 8;
 const MAX_GIT_OUTPUT_BYTES = 32 * 1024 * 1024;
 const MAX_PATCH_CHARS = 1_500_000;
+const HIDDEN_REF_NAMESPACES = ["refs/t3/checkpoints"] as const;
+const VISIBLE_HISTORY_REVISIONS = [
+  "--exclude=refs/t3/checkpoints",
+  "--exclude=refs/t3/checkpoints/*",
+  "--all",
+] as const;
+
+function isHiddenRef(fullName: string): boolean {
+  return HIDDEN_REF_NAMESPACES.some(
+    (namespace) => fullName === namespace || fullName.startsWith(`${namespace}/`),
+  );
+}
 
 function runGit(
   cwd: string,
@@ -136,6 +148,7 @@ async function readRefs(
     const peeledHash = fields[index + 1]?.trim();
     const fullName = fields[index + 2]?.trim();
     if (!objectHash || !fullName) continue;
+    if (isHiddenRef(fullName)) continue;
 
     const hash = peeledHash || objectHash;
     const ref: GitRef = {
@@ -322,7 +335,7 @@ export default experimental_defineHostEntry({
           repoRoot,
           [
             "log",
-            "--all",
+            ...VISIBLE_HISTORY_REVISIONS,
             "--topo-order",
             `--max-count=${limit + 1}`,
             `--skip=${offset}`,
@@ -330,7 +343,11 @@ export default experimental_defineHostEntry({
           ],
           context.signal,
         ),
-        runGit(repoRoot, ["rev-list", "--all", "--count"], context.signal),
+        runGit(
+          repoRoot,
+          ["rev-list", ...VISIBLE_HISTORY_REVISIONS, "--count"],
+          context.signal,
+        ),
       ]);
 
       const parsed = parseCommitFields(rawHistory, byHash);

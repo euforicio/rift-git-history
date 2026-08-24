@@ -16,6 +16,7 @@ function git(repo: string, ...args: string[]): string {
 describe("Git history host entry", () => {
   let repo = "";
   let mergeHash = "";
+  let checkpointHash = "";
 
   beforeAll(() => {
     repo = mkdtempSync(join(tmpdir(), "bb-git-history-test-"));
@@ -46,6 +47,14 @@ describe("Git history host entry", () => {
     git(repo, "add", "side.txt");
     git(repo, "commit", "-m", "side only");
     git(repo, "checkout", "main");
+
+    git(repo, "checkout", "-b", "checkpoint");
+    git(repo, "commit", "--allow-empty", "-m", "t3 checkpoint ref=refs/t3/checkpoints/test");
+    checkpointHash = git(repo, "rev-parse", "HEAD");
+    git(repo, "update-ref", "refs/t3/checkpoints/test", checkpointHash);
+    git(repo, "update-ref", "refs/t3/checkpoints/shared", mergeHash);
+    git(repo, "checkout", "main");
+    git(repo, "branch", "-D", "checkpoint");
   });
 
   afterAll(() => {
@@ -70,9 +79,13 @@ describe("Git history host entry", () => {
     expect(all.total).toBe(5);
     expect(all.currentBranch).toBe("main");
     expect(all.commits.map((commit) => commit.subject)).toContain("side only");
+    expect(all.commits.map((commit) => commit.hash)).not.toContain(checkpointHash);
     expect(
       all.commits.find((commit) => commit.hash === mergeHash)?.refs.map((ref) => ref.name),
     ).toEqual(expect.arrayContaining(["main", "v1.0.0"]));
+    expect(
+      all.commits.find((commit) => commit.hash === mergeHash)?.refs.map((ref) => ref.fullName),
+    ).not.toContain("refs/t3/checkpoints/shared");
 
     await harness.experimental_dispose();
   });
