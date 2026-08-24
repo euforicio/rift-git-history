@@ -30,54 +30,10 @@ import { Icon } from "@/components/ui/icon";
 import "./app.css";
 
 const PAGE_SIZE = 200;
-const DESKTOP_ROW_HEIGHT = 36;
-const TOUCH_ROW_HEIGHT = 44;
-const NARROW_ROW_HEIGHT = 52;
-const NARROW_TOUCH_ROW_HEIGHT = 60;
-const NARROW_LAYOUT_BREAKPOINT = 720;
-const STANDARD_LANE_GAP = 16;
+const COMMIT_ROW_HEIGHT = 31;
+const DATE_HEADER_HEIGHT = 24;
+const GRAPH_WIDTH = 38;
 const GRAPH_PADDING = 12;
-const MAX_GRAPH_WIDTH = 120;
-
-function useCoarsePointer(): boolean {
-  const [isCoarse, setIsCoarse] = useState(() =>
-    typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches,
-  );
-
-  useEffect(() => {
-    const media = window.matchMedia("(pointer: coarse)");
-    const update = () => setIsCoarse(media.matches);
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
-
-  return isCoarse;
-}
-
-function useNarrowElement(ref: { current: HTMLElement | null }): boolean {
-  const [isNarrow, setIsNarrow] = useState(false);
-
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-
-    const update = () => {
-      setIsNarrow(element.clientWidth < NARROW_LAYOUT_BREAKPOINT);
-    };
-    update();
-
-    if (typeof ResizeObserver === "undefined") {
-      window.addEventListener("resize", update);
-      return () => window.removeEventListener("resize", update);
-    }
-
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [ref]);
-
-  return isNarrow;
-}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Git history could not be loaded.";
@@ -96,6 +52,96 @@ function relativeTime(value: string): string {
   if (absolute < 2_592_000) return formatter.format(Math.round(seconds / 86_400), "day");
   if (absolute < 31_536_000) return formatter.format(Math.round(seconds / 2_592_000), "month");
   return formatter.format(Math.round(seconds / 31_536_000), "year");
+}
+
+function exactTime(value: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "--:--";
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function calendarKey(value: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "unknown";
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function dateGroupLabel(value: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Unknown date";
+  const today = new Date();
+  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDifference = Math.round((startToday.getTime() - startDate.getTime()) / 86_400_000);
+  if (dayDifference === 0) return "Today";
+  if (dayDifference === 1) return "Yesterday";
+
+  const parts = new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((entry) => entry.type === type)?.value ?? "";
+  return `${part("weekday")} ${part("day")} ${part("month")}`.trim();
+}
+
+type HistoryListItem =
+  | {
+    kind: "date";
+    key: string;
+    label: string;
+    count: number;
+  }
+  | {
+    kind: "commit";
+    key: string;
+    commit: GitCommitSummary;
+    commitIndex: number;
+    showAuthor: boolean;
+  };
+
+function historyListItems(commits: GitCommitSummary[]): HistoryListItem[] {
+  const groups: Array<{ key: string; label: string; commits: Array<{ commit: GitCommitSummary; index: number }> }> = [];
+  for (const [index, commit] of commits.entries()) {
+    const key = calendarKey(commit.authorDate);
+    const current = groups.at(-1);
+    if (!current || current.key !== key) {
+      groups.push({
+        key,
+        label: dateGroupLabel(commit.authorDate),
+        commits: [{ commit, index }],
+      });
+    } else {
+      current.commits.push({ commit, index });
+    }
+  }
+
+  return groups.flatMap((group) => [
+    {
+      kind: "date" as const,
+      key: `date-${group.key}`,
+      label: group.label,
+      count: group.commits.length,
+    },
+    ...group.commits.map(({ commit, index }, groupIndex) => ({
+      kind: "commit" as const,
+      key: commit.hash,
+      commit,
+      commitIndex: index,
+      showAuthor: groupIndex === 0 || group.commits[groupIndex - 1]?.commit.authorName !== commit.authorName,
+    })),
+  ]);
+}
+
+function subjectParts(subject: string): { prefix: string | null; text: string } {
+  const match = /^([a-z][a-z0-9-]*(?:\([^)]+\))?!?:)\s*(.*)$/i.exec(subject.trim());
+  if (!match) return { prefix: null, text: subject || "No commit message" };
+  return { prefix: match[1] ?? null, text: match[2] || "No commit message" };
 }
 
 function refClass(ref: GitRef): string {
@@ -119,13 +165,23 @@ function RefPills({ refs, limit = 2 }: { refs: GitRef[]; limit?: number }) {
     <span className="git-refs" aria-label={refs.map((ref) => ref.name).join(", ")}>
       {visible.map((ref) => (
         <span className={`git-ref ${refClass(ref)}`} key={ref.fullName}>
-          {ref.isHead && <Icon name="Target" aria-hidden="true" />}
-          {ref.name}
+          {ref.isHead ? `HEAD → ${ref.name}` : ref.name}
         </span>
       ))}
       {refs.length > limit && (
         <span className="git-ref git-ref-muted">+{refs.length - limit}</span>
       )}
+    </span>
+  );
+}
+
+function CommitSubject({ subject }: { subject: string }) {
+  const { prefix, text } = subjectParts(subject);
+  return (
+    <span className="git-commit-subject" title={subject}>
+      {prefix && <span className="git-commit-prefix">{prefix}</span>}
+      {prefix && " "}
+      {text}
     </span>
   );
 }
@@ -265,50 +321,41 @@ function CommitList({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [expandedHash, setExpandedHash] = useState<string | null>(null);
-  const isCoarsePointer = useCoarsePointer();
-  const isNarrow = useNarrowElement(scrollRef);
-  const rowHeight = isNarrow
-    ? (isCoarsePointer ? NARROW_TOUCH_ROW_HEIGHT : NARROW_ROW_HEIGHT)
-    : (isCoarsePointer ? TOUCH_ROW_HEIGHT : DESKTOP_ROW_HEIGHT);
+  const listItems = useMemo(() => historyListItems(commits), [commits]);
   const graphRows = useMemo(() => layoutCommitGraph(commits), [commits]);
   const matches = useMemo(
     () => commits.map((commit) => commitMatches(commit, query)),
     [commits, query],
   );
-  const maxLaneCount = graphRows.reduce(
-    (maximum, row) => Math.max(maximum, row.laneCount),
-    1,
-  );
-  const laneSpan = Math.max(0, maxLaneCount - 1);
-  const laneGap = laneSpan === 0
-    ? STANDARD_LANE_GAP
-    : Math.min(
-      STANDARD_LANE_GAP,
-      (MAX_GRAPH_WIDTH - GRAPH_PADDING * 2) / laneSpan,
-    );
-  const graphWidth = Math.max(
-    44,
-    Math.min(MAX_GRAPH_WIDTH, GRAPH_PADDING * 2 + laneSpan * laneGap),
-  );
   const virtualizer = useVirtualizer({
-    count: commits.length,
+    count: listItems.length,
     getScrollElement: () => scrollRef.current,
-    getItemKey: (index) => commits[index]?.hash ?? index,
-    estimateSize: () => rowHeight,
+    getItemKey: (index) => listItems[index]?.key ?? index,
+    estimateSize: (index) => listItems[index]?.kind === "date"
+      ? DATE_HEADER_HEIGHT
+      : COMMIT_ROW_HEIGHT,
     overscan: 12,
   });
   const virtualItems = virtualizer.getVirtualItems();
   const lastVisibleIndex = virtualItems.at(-1)?.index ?? 0;
+  let activeDate: Extract<HistoryListItem, { kind: "date" }> | null = null;
+  for (let index = virtualItems[0]?.index ?? 0; index >= 0; index -= 1) {
+    const item = listItems[index];
+    if (item?.kind === "date") {
+      activeDate = item;
+      break;
+    }
+  }
 
   useEffect(() => {
-    if (hasMore && !loadingMore && lastVisibleIndex >= commits.length - 30) {
+    if (hasMore && !loadingMore && lastVisibleIndex >= listItems.length - 30) {
       onLoadMore();
     }
-  }, [commits.length, hasMore, lastVisibleIndex, loadingMore, onLoadMore]);
+  }, [hasMore, lastVisibleIndex, listItems.length, loadingMore, onLoadMore]);
 
   useEffect(() => {
     virtualizer.measure();
-  }, [expandedHash, rowHeight, virtualizer]);
+  }, [expandedHash, virtualizer]);
 
   useEffect(() => {
     if (expandedHash && !commits.some((commit) => commit.hash === expandedHash)) {
@@ -322,10 +369,42 @@ function CommitList({
         className="git-history-virtual"
         style={{ height: `${virtualizer.getTotalSize()}px` }}
       >
+        {activeDate && (
+          <div
+            className="git-date-header git-date-header-sticky"
+            aria-hidden="true"
+            style={{ transform: `translateY(${virtualizer.scrollOffset ?? 0}px)` }}
+          >
+            <span>{activeDate.label}</span>
+            <span className="git-date-rule" />
+            <span>{activeDate.count}</span>
+          </div>
+        )}
         {virtualItems.map((virtualRow) => {
-          const commit = commits[virtualRow.index];
-          const graphRow = graphRows[virtualRow.index];
-          if (!commit || !graphRow) return null;
+          const item = listItems[virtualRow.index];
+          if (!item) return null;
+          if (item.kind === "date") {
+            return (
+              <div
+                className="git-date-listitem"
+                data-index={virtualRow.index}
+                key={item.key}
+                ref={virtualizer.measureElement}
+                role="presentation"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+                <div className="git-date-header">
+                  <span>{item.label}</span>
+                  <span className="git-date-rule" />
+                  <span>{item.count}</span>
+                </div>
+              </div>
+            );
+          }
+
+          const { commit, commitIndex, showAuthor } = item;
+          const graphRow = graphRows[commitIndex];
+          if (!graphRow) return null;
           const isMerge = commit.parents.length > 1;
           const isHead = commit.refs.some((ref) => ref.isHead);
           const isExpanded = expandedHash === commit.hash;
@@ -351,37 +430,30 @@ function CommitList({
                 onClick={() => {
                   setExpandedHash((current) => current === commit.hash ? null : commit.hash);
                 }}
-                style={{ height: `${rowHeight}px` }}
                 title={isExpanded ? "Collapse changed files" : "Show changed files"}
               >
-                <GraphCell
-                  row={graphRow}
-                  width={graphWidth}
-                  laneGap={laneGap}
-                  rowHeight={rowHeight}
-                  isMerge={isMerge}
-                  isHead={isHead}
-                />
-                <span className="git-commit-copy">
-                  <span className="git-commit-subject" title={commit.subject}>
-                    {commit.subject || "No commit message"}
-                  </span>
-                  <RefPills refs={commit.refs} />
-                  <span className="git-commit-inline-meta">
-                    <span className="git-commit-author">{commit.authorName}</span>
-                    <time dateTime={commit.authorDate}>{relativeTime(commit.authorDate)}</time>
-                  </span>
+                <span className="git-graph-node-cell">
+                  <span className="git-graph-node" data-head={isHead || undefined} />
                 </span>
                 <Icon name="ChevronRight" className="git-commit-expand-icon" aria-hidden="true" />
+                <span className="git-commit-copy">
+                  <CommitSubject subject={commit.subject} />
+                  <RefPills refs={commit.refs} />
+                </span>
+                <span className="git-commit-inline-meta">
+                  {isExpanded && <code>{commit.hash.slice(0, 7)}</code>}
+                  {showAuthor && <span className="git-commit-author">{commit.authorName}</span>}
+                  <time dateTime={commit.authorDate}>{exactTime(commit.authorDate)}</time>
+                </span>
               </button>
               {isExpanded && (
                 <InlineCommitFiles
                   id={expansionId}
                   threadId={threadId}
                   commit={commit}
-                  graphWidth={graphWidth}
+                  graphWidth={GRAPH_WIDTH}
                   graphRow={graphRow}
-                  laneGap={laneGap}
+                  laneGap={16}
                 />
               )}
             </div>
