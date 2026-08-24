@@ -910,6 +910,286 @@
   }
 }
 
+/* Expanded commit */
+.git-commit-expansion {
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  border: 0;
+  padding: 0 12px 8px 0;
+  background: var(--gh-surface-sunken);
+}
+
+.git-commit-expansion .git-files {
+  border: 0;
+}
+
+.git-files-summary {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gh-tertiary);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.git-stat-added {
+  color: var(--gh-added);
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.git-stat-removed {
+  color: var(--gh-removed);
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.git-inline-file {
+  min-width: 0;
+}
+
+.git-file-row {
+  width: 100%;
+  min-height: 26px;
+  height: 26px;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  padding: 0 4px 0 0;
+  background: transparent;
+  color: var(--gh-code);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  font-weight: 400;
+  text-align: left;
+}
+
+.git-file-row:hover,
+.git-file-row:focus-visible {
+  outline: none;
+  background: var(--gh-active);
+  box-shadow: none;
+}
+
+.git-file-status {
+  text-align: center;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.git-file-status-added,
+.git-file-status-copied {
+  color: var(--gh-added);
+}
+
+.git-file-status-deleted {
+  color: var(--gh-removed);
+}
+
+.git-file-status-modified,
+.git-file-status-type-changed,
+.git-file-status-unknown {
+  color: var(--gh-modified);
+}
+
+.git-file-status-renamed {
+  color: var(--gh-accent);
+}
+
+.git-file-path {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--gh-quaternary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.git-file-path strong {
+  color: var(--gh-text);
+  font-weight: 500;
+}
+
+.git-file-stats {
+  display: flex;
+  gap: 6px;
+  color: var(--gh-tertiary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.git-file-stats span:first-child {
+  color: var(--gh-added);
+}
+
+.git-file-stats span:last-child {
+  color: var(--gh-removed);
+}
+
+.git-file-stats span[data-zero="true"] {
+  color: var(--gh-disabled);
+}
+
+/* Full-panel file diff */
+.git-diff-panel {
+  min-width: 0;
+}
+
+.git-diff-header {
+  height: 38px;
+  flex: 0 0 38px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--gh-hairline);
+  background: var(--gh-surface-subtle);
+}
+
+.git-icon-button {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 5px;
+  padding: 0;
+  color: var(--gh-secondary);
+}
+
+.git-icon-button:hover,
+.git-icon-button:focus-visible {
+  background: var(--gh-active);
+}
+
+.git-diff-title {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.git-diff-title strong {
+  overflow: hidden;
+  color: var(--gh-code);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 14px;
+}
+
+.git-diff-title span {
+  overflow: hidden;
+  color: var(--gh-quaternary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 11px;
+}
+
+.git-diff-stats {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.git-diff-stats span:first-child {
+  color: var(--gh-added);
+}
+
+.git-diff-stats span:last-child {
+  color: var(--gh-removed);
+}
+
+.git-file-strip {
+  height: 29px;
+  flex: 0 0 29px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--gh-hairline);
+  padding: 0 10px;
+}
+
+.git-file-strip > span {
+  flex: 0 0 auto;
+  color: var(--gh-disabled);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.git-file-strip > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.git-file-strip > div::-webkit-scrollbar {
+  display: none;
+}
+
+.git-file-strip button {
+  height: 19px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 9px;
+  padding: 0 7px;
+  background: transparent;
+  color: var(--gh-tertiary);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.git-file-strip button:hover,
+.git-file-strip button:focus-visible {
+  outline: none;
+  background: var(--gh-active);
+  color: var(--gh-text);
+}
+
+.git-file-strip button[data-active="true"] {
+  background: #f2f2f4;
+  color: var(--gh-text);
+}
+
+.git-diff-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  background: var(--gh-surface);
+  color: var(--gh-code);
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 19px;
+}
+
+.git-diff-body > div:not(.git-detail-loading):not(.git-inline-error):not(.git-empty-files):not(.git-patch-note) {
+  min-width: 100%;
+}
+
 .git-header-action svg {
   width: 15px;
   height: 15px;
