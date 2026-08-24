@@ -6,6 +6,10 @@
   --git-lane-3: light-dark(#0f9f9a, #5eead4);
   --git-lane-4: light-dark(#9333ea, #c084fc);
   --git-lane-5: light-dark(#a16207, #facc15);
+  --git-ref-head-bg: light-dark(#2563eb, #1d4ed8);
+  --git-ref-remote-bg: light-dark(#c2410c, #9a3412);
+  --git-ref-tag-bg: light-dark(#7e22ce, #6b21a8);
+  --git-ref-filled-fg: #ffffff;
   height: 100%;
   min-height: 0;
   display: flex;
@@ -239,8 +243,8 @@
 }
 
 .git-ref-head {
-  background: var(--git-lane-0);
-  color: white;
+  background: var(--git-ref-head-bg);
+  color: var(--git-ref-filled-fg);
 }
 
 .git-ref-head svg {
@@ -255,13 +259,13 @@
 }
 
 .git-ref-remote {
-  background: var(--git-lane-1);
-  color: white;
+  background: var(--git-ref-remote-bg);
+  color: var(--git-ref-filled-fg);
 }
 
 .git-ref-tag {
-  background: var(--git-lane-4);
-  color: white;
+  background: var(--git-ref-tag-bg);
+  color: var(--git-ref-filled-fg);
 }
 
 .git-ref-muted {
