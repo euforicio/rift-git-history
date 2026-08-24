@@ -612,14 +612,15 @@
   --gh-quaternary: color-mix(in oklab, var(--subtle-foreground, var(--muted-foreground)) 78%, var(--background));
   --gh-disabled: color-mix(in oklab, var(--subtle-foreground, var(--muted-foreground)) 56%, var(--background));
   --gh-rail: var(--border);
-  --gh-node: var(--muted-foreground);
-  --gh-accent: var(--primary);
-  --gh-accent-tint: var(--surface-selected, color-mix(in oklab, var(--primary) 12%, var(--background)));
-  --gh-accent-border: var(--surface-selected-border, color-mix(in oklab, var(--primary) 35%, var(--border)));
-  --gh-added: var(--success);
-  --gh-removed: var(--destructive-text, var(--destructive));
-  --gh-modified: var(--warning-text, var(--warning));
-  --gh-tag: var(--pr-merged, var(--primary));
+  --gh-node: light-dark(#8e9aad, #a8b3c4);
+  --gh-accent: light-dark(oklch(0.52 0.11 252), oklch(0.72 0.12 252));
+  --gh-accent-foreground: light-dark(#ffffff, #101828);
+  --gh-accent-tint: color-mix(in oklab, var(--gh-accent) 12%, var(--background));
+  --gh-accent-border: color-mix(in oklab, var(--gh-accent) 35%, var(--border));
+  --gh-added: light-dark(oklch(0.5 0.1 150), oklch(0.75 0.12 150));
+  --gh-removed: light-dark(oklch(0.53 0.13 25), oklch(0.74 0.14 25));
+  --gh-modified: light-dark(oklch(0.55 0.1 75), oklch(0.78 0.11 75));
+  --gh-tag: light-dark(oklch(0.44 0.09 300), oklch(0.75 0.1 300));
   --gh-tag-bg: color-mix(in oklab, var(--gh-tag) 10%, var(--background));
   --gh-tag-border: color-mix(in oklab, var(--gh-tag) 35%, var(--border));
   background: var(--gh-surface);
@@ -884,7 +885,7 @@
 .git-ref-head {
   border-color: var(--gh-accent);
   background: var(--gh-accent);
-  color: var(--primary-foreground);
+  color: var(--gh-accent-foreground);
   font-weight: 500;
 }
 
