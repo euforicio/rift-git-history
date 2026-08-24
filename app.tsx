@@ -31,8 +31,9 @@ import "./app.css";
 const PAGE_SIZE = 200;
 const DESKTOP_ROW_HEIGHT = 36;
 const TOUCH_ROW_HEIGHT = 44;
-const LANE_GAP = 16;
+const STANDARD_LANE_GAP = 16;
 const GRAPH_PADDING = 12;
+const MAX_GRAPH_WIDTH = 120;
 
 function useCoarsePointer(): boolean {
   const [isCoarse, setIsCoarse] = useState(() =>
@@ -100,8 +101,8 @@ function RefPills({ refs, limit = 2 }: { refs: GitRef[]; limit?: number }) {
   );
 }
 
-function laneX(lane: number): number {
-  return GRAPH_PADDING + lane * LANE_GAP;
+function laneX(lane: number, laneGap: number): number {
+  return GRAPH_PADDING + lane * laneGap;
 }
 
 function laneClass(lane: number): string {
@@ -111,18 +112,23 @@ function laneClass(lane: number): string {
 function GraphCell({
   row,
   width,
+  laneGap,
   rowHeight,
   isMerge,
   isHead,
 }: {
   row: GraphRow;
   width: number;
+  laneGap: number;
   rowHeight: number;
   isMerge: boolean;
   isHead: boolean;
 }) {
   const middle = rowHeight / 2;
   const emphasized = isMerge || isHead;
+  const nodeRadius = emphasized
+    ? Math.min(5.25, Math.max(3.25, laneGap * 0.42))
+    : Math.min(4.25, Math.max(2.5, laneGap * 0.34));
   return (
     <svg
       className="git-graph-cell"
@@ -135,18 +141,18 @@ function GraphCell({
         <line
           key={`top-${lane}`}
           className={laneClass(lane)}
-          x1={laneX(lane)}
+          x1={laneX(lane, laneGap)}
           y1={0}
-          x2={laneX(lane)}
+          x2={laneX(lane, laneGap)}
           y2={middle}
         />
       ))}
       {!row.startsHere && (
         <line
           className={laneClass(row.commitLane)}
-          x1={laneX(row.commitLane)}
+          x1={laneX(row.commitLane, laneGap)}
           y1={0}
-          x2={laneX(row.commitLane)}
+          x2={laneX(row.commitLane, laneGap)}
           y2={middle}
         />
       )}
@@ -154,15 +160,15 @@ function GraphCell({
         <line
           key={`bottom-${lane}`}
           className={laneClass(lane)}
-          x1={laneX(lane)}
+          x1={laneX(lane, laneGap)}
           y1={middle}
-          x2={laneX(lane)}
+          x2={laneX(lane, laneGap)}
           y2={rowHeight}
         />
       ))}
       {row.edges.map((edge, index) => {
-        const fromX = laneX(edge.fromLane);
-        const toX = laneX(edge.toLane);
+        const fromX = laneX(edge.fromLane, laneGap);
+        const toX = laneX(edge.toLane, laneGap);
         if (edge.kind === "straight") {
           return (
             <line
@@ -185,16 +191,16 @@ function GraphCell({
       })}
       <circle
         className={`${laneClass(row.commitLane)} git-commit-node ${emphasized ? "git-commit-node-ring" : "git-commit-node-solid"}`}
-        cx={laneX(row.commitLane)}
+        cx={laneX(row.commitLane, laneGap)}
         cy={middle}
-        r={emphasized ? 5.25 : 4.25}
+        r={nodeRadius}
       />
       {isMerge && (
         <circle
           className={`${laneClass(row.commitLane)} git-commit-node-core`}
-          cx={laneX(row.commitLane)}
+          cx={laneX(row.commitLane, laneGap)}
           cy={middle}
-          r={1.7}
+          r={Math.max(1.25, nodeRadius * 0.32)}
         />
       )}
     </svg>
@@ -239,9 +245,16 @@ function CommitList({
     (maximum, row) => Math.max(maximum, row.laneCount),
     1,
   );
-  const graphWidth = Math.min(
-    160,
-    Math.max(44, GRAPH_PADDING * 2 + (maxLaneCount - 1) * LANE_GAP),
+  const laneSpan = Math.max(0, maxLaneCount - 1);
+  const laneGap = laneSpan === 0
+    ? STANDARD_LANE_GAP
+    : Math.min(
+      STANDARD_LANE_GAP,
+      (MAX_GRAPH_WIDTH - GRAPH_PADDING * 2) / laneSpan,
+    );
+  const graphWidth = Math.max(
+    44,
+    Math.min(MAX_GRAPH_WIDTH, GRAPH_PADDING * 2 + laneSpan * laneGap),
   );
   const virtualizer = useVirtualizer({
     count: commits.length,
@@ -293,6 +306,7 @@ function CommitList({
                 <GraphCell
                   row={graphRow}
                   width={graphWidth}
+                  laneGap={laneGap}
                   rowHeight={rowHeight}
                   isMerge={isMerge}
                   isHead={isHead}
