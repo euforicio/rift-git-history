@@ -6,6 +6,14 @@ remote-tracking branches, tags, stashes, and shared worktree history.
 
 ## Install
 
+Install the latest compatible release from GitHub:
+
+```sh
+bb plugin install git:https://github.com/yusuf8834/bb-git-history.git@^0.1.0
+```
+
+For local development:
+
 ```sh
 npm install --include=dev
 npm run build
@@ -37,3 +45,7 @@ npm run build
 
 The host entry runs Git on the thread environment's bb host. This keeps the
 same behavior for local worktrees and repositories on connected machines.
+
+## License
+
+[MIT](LICENSE)

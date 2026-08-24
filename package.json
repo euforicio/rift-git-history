@@ -1,10 +1,26 @@
 {
   "name": "bb-plugin-git-history",
   "version": "0.1.0",
+  "description": "Browse the complete Git history of a project from a bb right panel.",
+  "license": "MIT",
+  "author": {
+    "name": "Yusuf Akbulut",
+    "url": "https://github.com/yusuf8834"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yusuf8834/bb-git-history.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yusuf8834/bb-git-history/issues"
+  },
+  "homepage": "https://github.com/yusuf8834/bb-git-history#readme",
   "type": "module",
   "scripts": {
     "build": "bb plugin build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check": "npm test && npm run typecheck && npm run build"
   },
   "engines": {
     "bb": ">=0.39",
@@ -35,6 +51,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "better-sqlite3": "^12.0.0",
+    "bb-app": "0.39.0",
     "hono": "^4.11.9",
     "sonner": "^2.0.7",
     "typescript": "^5.7.0",
