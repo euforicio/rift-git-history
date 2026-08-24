@@ -655,8 +655,12 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
   );
 
   return (
-    <>
-      <div className="git-history-panel" hidden={diffView !== null}>
+    <div className="git-history-view-stack">
+      <div
+        className="git-history-panel"
+        aria-hidden={diffView !== null}
+        data-inactive={diffView !== null || undefined}
+      >
       <div className="git-toolbar">
         <div className="git-repository">
           <strong>History</strong>
@@ -759,7 +763,7 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
           onBack={() => setDiffView(null)}
         />
       )}
-    </>
+    </div>
   );
 }
 
