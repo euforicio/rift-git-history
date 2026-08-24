@@ -10,6 +10,7 @@ import {
   experimental_Diff as Diff,
   useBbNavigate,
   useRpc,
+  useSettings,
 } from "@get-bb/plugin-sdk/app";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
@@ -351,6 +352,7 @@ function CommitList({
                   setExpandedHash((current) => current === commit.hash ? null : commit.hash);
                 }}
                 style={{ height: `${rowHeight}px` }}
+                title={isExpanded ? "Collapse changed files" : "Show changed files"}
               >
                 <GraphCell
                   row={graphRow}
@@ -370,7 +372,7 @@ function CommitList({
                     <time dateTime={commit.authorDate}>{relativeTime(commit.authorDate)}</time>
                   </span>
                 </span>
-                <Icon name="ChevronRight" className="git-commit-expand-icon" />
+                <Icon name="ChevronRight" className="git-commit-expand-icon" aria-hidden="true" />
               </button>
               {isExpanded && (
                 <InlineCommitFiles
@@ -541,6 +543,7 @@ function InlineCommitFiles({
                   aria-controls={patchId}
                   aria-expanded={isFileExpanded}
                   onClick={() => void toggleFile(file.path)}
+                  title={isFileExpanded ? "Collapse file diff" : "Show file diff"}
                 >
                   <span className={`git-file-status git-file-status-${file.status}`}>
                     <span className="sr-only">{file.status}</span>
@@ -551,7 +554,7 @@ function InlineCommitFiles({
                     {file.additions !== null && <span>+{file.additions}</span>}
                     {file.deletions !== null && <span>−{file.deletions}</span>}
                   </span>
-                  <Icon name="ChevronRight" className="git-file-expand-icon" />
+                  <Icon name="ChevronRight" className="git-file-expand-icon" aria-hidden="true" />
                 </button>
                 {isFileExpanded && (
                   <div className="git-inline-patch" id={patchId}>
@@ -662,10 +665,15 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
             size="icon"
             className="h-7 w-7"
             aria-label="Refresh Git history"
+            title="Refresh Git history"
             disabled={initialLoading}
             onClick={() => void loadHistory(true)}
           >
-            <Icon name={initialLoading ? "Loading" : "ArrowReloadHorizontal"} className={initialLoading ? "animate-spin" : ""} />
+            <Icon
+              name={initialLoading ? "Loading" : "ArrowReloadHorizontal"}
+              className={initialLoading ? "animate-spin" : ""}
+              aria-hidden="true"
+            />
           </Button>
         </div>
       </div>
@@ -734,10 +742,14 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
 
 function GitHistoryHeaderAction({ threadId }: { threadId: string }) {
   const navigate = useBbNavigate();
+  const { values } = useSettings();
+  if (values?.showHeaderShortcut !== true) return null;
+
   return (
     <button
       className="git-header-action"
       aria-label="Open Git history"
+      title="Open Git history"
       onClick={() => {
         const opened = navigate.openThreadPanel({
           actionId: "history",
@@ -747,7 +759,7 @@ function GitHistoryHeaderAction({ threadId }: { threadId: string }) {
       }}
       data-thread-id={threadId}
     >
-      <Icon name="FolderGit" />
+      <Icon name="FolderGit" aria-hidden="true" />
     </button>
   );
 }

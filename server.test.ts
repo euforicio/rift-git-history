@@ -53,6 +53,13 @@ describe("Git history server", () => {
     });
     plugin(bb);
 
+    expect(harness.registrations.settingsDescriptors.showHeaderShortcut).toEqual({
+      type: "boolean",
+      label: "Show thread header shortcut",
+      description: "Show Git History beside the editor controls. Git History remains available from New tab.",
+      default: false,
+    });
+
     const result = (await harness.behavior.callRpc("history", {
       threadId: "thread-1",
       offset: 0,

@@ -40,6 +40,15 @@ async function repositoryForThread(
 export default function plugin(bb: BbPluginApi) {
   const host = bb.hosts.experimental_client({ contract: hostContract });
 
+  bb.settings.define({
+    showHeaderShortcut: {
+      type: "boolean",
+      label: "Show thread header shortcut",
+      description: "Show Git History beside the editor controls. Git History remains available from New tab.",
+      default: false,
+    },
+  });
+
   bb.rpc.register(rpcContract, {
     async history({ threadId, offset, limit }) {
       try {
