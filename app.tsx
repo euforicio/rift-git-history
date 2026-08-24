@@ -695,15 +695,13 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Filter commits"
-          aria-label="Filter commits"
+          placeholder="Find in loaded commits"
+          aria-label="Find in loaded commits"
         />
-        {query ? (
+        {query && (
           <span className="git-search-count" role="status">
             {matchingCount.toLocaleString()} {matchingCount === 1 ? "match" : "matches"}
           </span>
-        ) : (
-          <span className="git-search-hint" aria-hidden="true">⌘F</span>
         )}
       </div>
 

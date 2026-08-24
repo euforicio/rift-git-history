@@ -1318,8 +1318,7 @@
   box-shadow: 0 0 0 1px var(--gh-accent-border);
 }
 
-.git-search-count,
-.git-search-hint {
+.git-search-count {
   position: absolute;
   top: 50%;
   right: 18px;
