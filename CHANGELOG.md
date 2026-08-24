@@ -2,6 +2,12 @@
 
 All notable changes to Git History are documented here.
 
+## [0.1.1] - 2026-08-24
+
+### Fixed
+
+- Returning from a file diff now preserves the history scroll position without leaving a blank gap above the virtualized commit list.
+
 ## [0.1.0] - 2026-08-24
 
 ### Added
