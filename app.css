@@ -1,5 +1,4 @@
-.git-history-panel,
-.git-detail {
+.git-history-panel {
   --git-lane-0: light-dark(#2563eb, #60a5fa);
   --git-lane-1: light-dark(#ea580c, #fb923c);
   --git-lane-2: light-dark(#db2777, #f472b6);
@@ -157,13 +156,32 @@
   background: color-mix(in oklab, var(--accent) 72%, transparent);
 }
 
+.git-commit-row[data-expanded="true"] {
+  background: color-mix(in oklab, var(--muted) 42%, transparent);
+}
+
+.git-commit-expand-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  align-self: center;
+  margin-right: 8px;
+  color: var(--muted-foreground);
+  transition: transform 140ms ease;
+}
+
+.git-commit-row[data-expanded="true"] .git-commit-expand-icon {
+  transform: rotate(90deg);
+}
+
 .git-graph-cell {
   flex: 0 0 auto;
   overflow: visible;
 }
 
 .git-graph-cell line,
-.git-graph-cell path {
+.git-graph-cell path,
+.git-expansion-graph line {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.5;
@@ -339,9 +357,25 @@
   text-overflow: ellipsis;
 }
 
-.git-detail-hash {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-variant-numeric: tabular-nums;
+.git-commit-expansion {
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  background: color-mix(in oklab, var(--muted) 20%, transparent);
+}
+
+.git-expansion-graph {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.git-commit-expansion .git-section-heading {
+  position: static;
 }
 
 .git-footer {
@@ -408,89 +442,6 @@
   color: var(--destructive);
 }
 
-.git-detail-header {
-  height: 42px;
-  flex: 0 0 42px;
-  display: grid;
-  grid-template-columns: 28px 1fr 28px;
-  align-items: center;
-  gap: 6px;
-  padding: 0 8px;
-  border-bottom: 1px solid var(--border);
-}
-
-.git-detail-header-title {
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.git-detail-header-title code {
-  overflow: hidden;
-  color: var(--muted-foreground);
-  font-size: 11px;
-  font-weight: 500;
-  text-overflow: ellipsis;
-}
-
-.git-detail-scroll {
-  min-height: 0;
-  flex: 1 1 auto;
-  overflow: auto;
-}
-
-.git-detail-summary {
-  padding: 16px 14px 14px;
-  border-bottom: 1px solid var(--border);
-}
-
-.git-detail-summary h2 {
-  margin: 0 0 6px;
-  font-size: 15px;
-  font-weight: 620;
-  line-height: 1.35;
-}
-
-.git-detail-byline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  color: var(--muted-foreground);
-  font-size: 12px;
-}
-
-.git-detail-summary > .git-refs {
-  max-width: 100%;
-  margin-top: 10px;
-  flex-wrap: wrap;
-}
-
-.git-detail-hash {
-  display: block;
-  max-width: 100%;
-  margin-top: 10px;
-  overflow: hidden;
-  color: var(--muted-foreground);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-}
-
-.git-commit-body {
-  margin: 13px 0 0;
-  white-space: pre-wrap;
-  color: var(--foreground);
-  font-family: inherit;
-  font-size: 12px;
-  line-height: 1.55;
-}
-
 .git-detail-loading,
 .git-inline-error,
 .git-empty-files,
@@ -507,9 +458,12 @@
   color: var(--destructive);
 }
 
-.git-files,
-.git-patch {
+.git-files {
   border-bottom: 1px solid var(--border);
+}
+
+.git-commit-expansion .git-files {
+  border-bottom: 0;
 }
 
 .git-section-heading {
@@ -539,7 +493,7 @@
   width: 100%;
   min-height: 34px;
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
+  grid-template-columns: 20px minmax(0, 1fr) auto 14px;
   align-items: center;
   gap: 7px;
   border: 0;
@@ -609,8 +563,25 @@
   color: var(--destructive);
 }
 
-.git-patch > div:not(.git-section-heading):not(.git-detail-loading):not(.git-empty-files):not(.git-patch-note) {
-  border-top: 1px solid var(--border);
+.git-file-expand-icon {
+  width: 13px;
+  height: 13px;
+  color: var(--muted-foreground);
+  transition: transform 140ms ease;
+}
+
+.git-file-selected .git-file-expand-icon {
+  transform: rotate(90deg);
+}
+
+.git-inline-patch {
+  border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+  background: var(--background);
+}
+
+.git-inline-patch-content {
+  max-height: min(420px, 48vh);
+  overflow: auto;
 }
 
 .git-header-action {

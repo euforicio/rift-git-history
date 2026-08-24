@@ -248,21 +248,22 @@ function commitMatches(commit: GitCommitSummary, rawQuery: string): boolean {
 }
 
 function CommitList({
+  threadId,
   commits,
   hasMore,
   loadingMore,
   query,
   onLoadMore,
-  onSelect,
 }: {
+  threadId: string;
   commits: GitCommitSummary[];
   hasMore: boolean;
   loadingMore: boolean;
   query: string;
   onLoadMore: () => void;
-  onSelect: (commit: GitCommitSummary) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [expandedHash, setExpandedHash] = useState<string | null>(null);
   const isCoarsePointer = useCoarsePointer();
   const isNarrow = useNarrowElement(scrollRef);
   const rowHeight = isNarrow
@@ -291,6 +292,7 @@ function CommitList({
   const virtualizer = useVirtualizer({
     count: commits.length,
     getScrollElement: () => scrollRef.current,
+    getItemKey: (index) => commits[index]?.hash ?? index,
     estimateSize: () => rowHeight,
     overscan: 12,
   });
@@ -305,7 +307,13 @@ function CommitList({
 
   useEffect(() => {
     virtualizer.measure();
-  }, [rowHeight, virtualizer]);
+  }, [expandedHash, rowHeight, virtualizer]);
+
+  useEffect(() => {
+    if (expandedHash && !commits.some((commit) => commit.hash === expandedHash)) {
+      setExpandedHash(null);
+    }
+  }, [commits, expandedHash]);
 
   return (
     <div className="git-history-scroll" ref={scrollRef} role="list">
@@ -319,21 +327,30 @@ function CommitList({
           if (!commit || !graphRow) return null;
           const isMerge = commit.parents.length > 1;
           const isHead = commit.refs.some((ref) => ref.isHead);
+          const isExpanded = expandedHash === commit.hash;
+          const expansionId = `git-commit-files-${commit.hash}`;
           return (
             <div
               className="git-commit-listitem"
+              data-index={virtualRow.index}
               key={commit.hash}
+              ref={virtualizer.measureElement}
               role="listitem"
               style={{
-                height: `${virtualRow.size}px`,
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >
               <button
                 className={`git-commit-row ${matches[virtualRow.index] ? "git-commit-match" : ""}`}
+                aria-controls={expansionId}
+                aria-expanded={isExpanded}
                 data-head={isHead || undefined}
                 data-merge={isMerge || undefined}
-                onClick={() => onSelect(commit)}
+                data-expanded={isExpanded || undefined}
+                onClick={() => {
+                  setExpandedHash((current) => current === commit.hash ? null : commit.hash);
+                }}
+                style={{ height: `${rowHeight}px` }}
               >
                 <GraphCell
                   row={graphRow}
@@ -353,7 +370,18 @@ function CommitList({
                     <time dateTime={commit.authorDate}>{relativeTime(commit.authorDate)}</time>
                   </span>
                 </span>
+                <Icon name="ChevronRight" className="git-commit-expand-icon" />
               </button>
+              {isExpanded && (
+                <InlineCommitFiles
+                  id={expansionId}
+                  threadId={threadId}
+                  commit={commit}
+                  graphWidth={graphWidth}
+                  graphRow={graphRow}
+                  laneGap={laneGap}
+                />
+              )}
             </div>
           );
         })}
@@ -387,14 +415,20 @@ function statusLetter(status: GitFileChange["status"]): string {
   }
 }
 
-function CommitDetail({
+function InlineCommitFiles({
+  id,
   threadId,
   commit,
-  onBack,
+  graphWidth,
+  graphRow,
+  laneGap,
 }: {
+  id: string;
   threadId: string;
   commit: GitCommitSummary;
-  onBack: () => void;
+  graphWidth: number;
+  graphRow: GraphRow;
+  laneGap: number;
 }) {
   const rpc = useRpc<typeof rpcContract>();
   const [details, setDetails] = useState<CommitDetails | null>(null);
@@ -402,6 +436,7 @@ function CommitDetail({
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [patch, setPatch] = useState<CommitPatch | null>(null);
   const [patchLoading, setPatchLoading] = useState(false);
+  const patchRequest = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -420,8 +455,21 @@ function CommitDetail({
     };
   }, [commit.hash, rpc, threadId]);
 
-  const openFile = useCallback(
+  useEffect(() => () => {
+    patchRequest.current += 1;
+  }, []);
+
+  const toggleFile = useCallback(
     async (path: string) => {
+      if (selectedFile === path) {
+        patchRequest.current += 1;
+        setSelectedFile(null);
+        setPatch(null);
+        setPatchLoading(false);
+        return;
+      }
+
+      const sequence = ++patchRequest.current;
       setSelectedFile(path);
       setPatch(null);
       setPatchLoading(true);
@@ -431,126 +479,106 @@ function CommitDetail({
           hash: commit.hash,
           path,
         });
-        setPatch(result);
+        if (sequence === patchRequest.current) setPatch(result);
       } catch (error) {
-        toast.error(errorMessage(error));
+        if (sequence === patchRequest.current) toast.error(errorMessage(error));
       } finally {
-        setPatchLoading(false);
+        if (sequence === patchRequest.current) setPatchLoading(false);
       }
     },
-    [commit.hash, rpc, threadId],
+    [commit.hash, rpc, selectedFile, threadId],
   );
 
   return (
-    <div className="git-detail">
-      <div className="git-detail-header">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          aria-label="Back to Git history"
-          onClick={onBack}
-        >
-          <Icon name="ChevronLeft" />
-        </Button>
-        <span className="git-detail-header-title">
-          <span>Commit</span>
-          <code>{commit.hash.slice(0, 8)}</code>
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          aria-label="Copy commit hash"
-          onClick={() => {
-            void navigator.clipboard.writeText(commit.hash).then(() => {
-              toast.success("Commit hash copied");
-            });
-          }}
-        >
-          <Icon name="Copy" />
-        </Button>
-      </div>
+    <div
+      className="git-commit-expansion"
+      id={id}
+      role="region"
+      aria-label={`Files changed in ${commit.subject || commit.hash.slice(0, 8)}`}
+      style={{ marginLeft: `${graphWidth}px` }}
+    >
+      <svg
+        className="git-expansion-graph"
+        width={graphWidth}
+        height="100%"
+        aria-hidden="true"
+      >
+        {graphRow.bottomLanes.map((lane) => (
+          <line
+            key={lane}
+            className={laneClass(lane)}
+            x1={laneX(lane, laneGap)}
+            y1="0"
+            x2={laneX(lane, laneGap)}
+            y2="100%"
+          />
+        ))}
+      </svg>
+      {detailsError && <div className="git-inline-error" role="alert">{detailsError}</div>}
+      {!details && !detailsError && (
+        <div className="git-detail-loading" role="status">
+          <Icon name="Loading" className="animate-spin" />
+          Loading changed files
+        </div>
+      )}
 
-      <div className="git-detail-scroll">
-        <section className="git-detail-summary">
-          <h2>{commit.subject || "No commit message"}</h2>
-          <div className="git-detail-byline">
-            <span>{commit.authorName}</span>
-            <span aria-hidden="true">·</span>
-            <time dateTime={commit.authorDate}>
-              {new Date(commit.authorDate).toLocaleString()}
-            </time>
+      {details && (
+        <section className="git-files">
+          <div className="git-section-heading">
+            <span>Files changed</span>
+            <span>{details.files.length}</span>
           </div>
-          <RefPills refs={commit.refs} limit={8} />
-          <code className="git-detail-hash" title="Full commit hash">
-            {commit.hash}
-          </code>
-          {details?.body && details.body.trim() !== commit.subject.trim() && (
-            <pre className="git-commit-body">{details.body.trim()}</pre>
+          {details.files.length === 0 && (
+            <div className="git-empty-files">No file changes to show.</div>
           )}
-        </section>
-
-        {detailsError && <div className="git-inline-error" role="alert">{detailsError}</div>}
-        {!details && !detailsError && (
-          <div className="git-detail-loading" role="status">
-            <Icon name="Loading" className="animate-spin" />
-            Loading commit details
-          </div>
-        )}
-
-        {details && (
-          <section className="git-files">
-            <div className="git-section-heading">
-              <span>Files changed</span>
-              <span>{details.files.length}</span>
-            </div>
-            {details.files.length === 0 && (
-              <div className="git-empty-files">No file changes to show.</div>
-            )}
-            {details.files.map((file) => (
-              <button
-                className={`git-file-row ${selectedFile === file.path ? "git-file-selected" : ""}`}
-                key={file.path}
-                onClick={() => void openFile(file.path)}
-              >
-                <span className={`git-file-status git-file-status-${file.status}`}>
-                  <span className="sr-only">{file.status}</span>
-                  {statusLetter(file.status)}
-                </span>
-                <span className="git-file-path">{file.path}</span>
-                <span className="git-file-stats">
-                  {file.additions !== null && <span>+{file.additions}</span>}
-                  {file.deletions !== null && <span>−{file.deletions}</span>}
-                </span>
-              </button>
-            ))}
-          </section>
-        )}
-
-        {selectedFile && (
-          <section className="git-patch">
-            <div className="git-section-heading">
-              <span>{selectedFile}</span>
-            </div>
-            {patchLoading && (
-              <div className="git-detail-loading" role="status">
-                <Icon name="Loading" className="animate-spin" />
-                Loading diff
+          {details.files.map((file, index) => {
+            const isFileExpanded = selectedFile === file.path;
+            const patchId = `git-file-patch-${commit.hash}-${index}`;
+            return (
+              <div className="git-inline-file" key={file.path}>
+                <button
+                  className={`git-file-row ${isFileExpanded ? "git-file-selected" : ""}`}
+                  aria-controls={patchId}
+                  aria-expanded={isFileExpanded}
+                  onClick={() => void toggleFile(file.path)}
+                >
+                  <span className={`git-file-status git-file-status-${file.status}`}>
+                    <span className="sr-only">{file.status}</span>
+                    {statusLetter(file.status)}
+                  </span>
+                  <span className="git-file-path">{file.path}</span>
+                  <span className="git-file-stats">
+                    {file.additions !== null && <span>+{file.additions}</span>}
+                    {file.deletions !== null && <span>−{file.deletions}</span>}
+                  </span>
+                  <Icon name="ChevronRight" className="git-file-expand-icon" />
+                </button>
+                {isFileExpanded && (
+                  <div className="git-inline-patch" id={patchId}>
+                    {patchLoading && (
+                      <div className="git-detail-loading" role="status">
+                        <Icon name="Loading" className="animate-spin" />
+                        Loading diff
+                      </div>
+                    )}
+                    {patch && patch.patch && (
+                      <div className="git-inline-patch-content">
+                        <Diff patch={patch.patch} path={patch.path} overflow="scroll" />
+                      </div>
+                    )}
+                    {patch && !patch.patch && (
+                      <div className="git-empty-files">No textual diff for this file.</div>
+                    )}
+                    {patch?.truncated && (
+                      <div className="git-patch-note">Diff truncated at 1.5 MB.</div>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-            {patch && patch.patch && (
-              <Diff patch={patch.patch} path={patch.path} overflow="scroll" />
-            )}
-            {patch && !patch.patch && (
-              <div className="git-empty-files">No textual diff for this file.</div>
-            )}
-            {patch?.truncated && (
-              <div className="git-patch-note">Diff truncated at 1.5 MB.</div>
-            )}
-          </section>
-        )}
-      </div>
+            );
+          })}
+        </section>
+      )}
     </div>
   );
 }
@@ -560,7 +588,6 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
   const [page, setPage] = useState<HistoryPage | null>(null);
   const [commits, setCommits] = useState<GitCommitSummary[]>([]);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<GitCommitSummary | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -609,7 +636,6 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
   useEffect(() => {
     setCommits([]);
     setPage(null);
-    setSelected(null);
     void loadHistory(true);
   }, [threadId]);
 
@@ -617,16 +643,6 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
     () => commits.filter((commit) => commitMatches(commit, query)).length,
     [commits, query],
   );
-
-  if (selected) {
-    return (
-      <CommitDetail
-        threadId={threadId}
-        commit={selected}
-        onBack={() => setSelected(null)}
-      />
-    );
-  }
 
   return (
     <div className="git-history-panel">
@@ -696,12 +712,12 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
 
       {commits.length > 0 && (
         <CommitList
+          threadId={threadId}
           commits={commits}
           hasMore={page?.hasMore ?? false}
           loadingMore={loadingMore}
           query={query}
           onLoadMore={() => void loadHistory(false)}
-          onSelect={setSelected}
         />
       )}
 
