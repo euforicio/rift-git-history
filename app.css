@@ -79,7 +79,7 @@
 .git-search-wrap input {
   height: 28px;
   padding-left: 27px;
-  padding-right: 38px;
+  padding-right: 82px;
   border-radius: 4px;
   font-size: 12px;
   background: color-mix(in oklab, var(--muted) 36%, transparent);
@@ -89,12 +89,15 @@
   position: absolute;
   top: 11px;
   right: 15px;
-  min-width: 20px;
+  max-width: 72px;
   padding: 1px 5px;
   border-radius: 999px;
   background: var(--secondary);
   color: var(--secondary-foreground);
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 9px;
   font-variant-numeric: tabular-nums;
 }
@@ -306,7 +309,7 @@
   flex: 0 0 23px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 0 10px;
   border-top: 1px solid var(--border);
   color: var(--muted-foreground);

@@ -239,12 +239,6 @@ function CommitList({
     }
   }, [commits.length, hasMore, lastVisibleIndex, loadingMore, onLoadMore]);
 
-  useEffect(() => {
-    if (!query.trim()) return;
-    const firstMatch = matches.indexOf(true);
-    if (firstMatch >= 0) virtualizer.scrollToIndex(firstMatch, { align: "center" });
-  }, [matches, query, virtualizer]);
-
   return (
     <div className="git-history-scroll" ref={scrollRef} role="list">
       <div
@@ -590,11 +584,13 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search commits"
-          aria-label="Find a loaded commit"
+          placeholder="Find in loaded commits"
+          aria-label="Find in loaded commits"
         />
         {query && (
-          <span className="git-search-count">{matchingCount}</span>
+          <span className="git-search-count">
+            {matchingCount.toLocaleString()} {matchingCount === 1 ? "match" : "matches"}
+          </span>
         )}
       </div>
 
@@ -634,10 +630,13 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
         />
       )}
 
-      <div className="git-footer">
-        <span>{(page?.total ?? 0).toLocaleString()} commits</span>
-        <span>All refs</span>
-      </div>
+      {commits.length > 0 && (
+        <div className="git-footer">
+          <span>
+            {commits.length.toLocaleString()} of {(page?.total ?? commits.length).toLocaleString()} commits loaded
+          </span>
+        </div>
+      )}
     </div>
   );
 }
