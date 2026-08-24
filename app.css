@@ -391,12 +391,23 @@
 }
 
 .git-detail-header-title {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
   overflow: hidden;
-  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
   font-weight: 600;
+}
+
+.git-detail-header-title code {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  text-overflow: ellipsis;
 }
 
 .git-detail-scroll {
@@ -411,7 +422,7 @@
 }
 
 .git-detail-summary h2 {
-  margin: 10px 0 6px;
+  margin: 0 0 6px;
   font-size: 15px;
   font-weight: 620;
   line-height: 1.35;
@@ -425,18 +436,20 @@
   font-size: 12px;
 }
 
+.git-detail-summary > .git-refs {
+  max-width: 100%;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
 .git-detail-hash {
   display: block;
   max-width: 100%;
-  margin-top: 9px;
+  margin-top: 10px;
   overflow: hidden;
-  border: 0;
-  padding: 0;
-  background: transparent;
   color: var(--muted-foreground);
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: copy;
   font-size: 11px;
 }
 
@@ -471,6 +484,9 @@
 }
 
 .git-section-heading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   min-height: 34px;
   display: flex;
   align-items: center;
@@ -510,6 +526,10 @@
 .git-file-selected,
 .git-file-row:focus-visible {
   background: var(--state-hover, color-mix(in oklab, var(--muted) 58%, transparent));
+}
+
+.git-file-selected:not(:focus-visible) {
+  box-shadow: inset 2px 0 0 var(--primary);
 }
 
 .git-file-row:focus-visible {

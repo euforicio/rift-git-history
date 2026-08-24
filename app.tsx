@@ -421,7 +421,10 @@ function CommitDetail({
         >
           <Icon name="ChevronLeft" />
         </Button>
-        <span className="git-detail-header-title">Commit</span>
+        <span className="git-detail-header-title">
+          <span>Commit</span>
+          <code>{commit.hash.slice(0, 8)}</code>
+        </span>
         <Button
           variant="ghost"
           size="icon"
@@ -439,7 +442,6 @@ function CommitDetail({
 
       <div className="git-detail-scroll">
         <section className="git-detail-summary">
-          <RefPills refs={commit.refs} limit={8} />
           <h2>{commit.subject || "No commit message"}</h2>
           <div className="git-detail-byline">
             <span>{commit.authorName}</span>
@@ -448,20 +450,18 @@ function CommitDetail({
               {new Date(commit.authorDate).toLocaleString()}
             </time>
           </div>
-          <button
-            className="git-detail-hash"
-            onClick={() => void navigator.clipboard.writeText(commit.hash)}
-          >
+          <RefPills refs={commit.refs} limit={8} />
+          <code className="git-detail-hash" title="Full commit hash">
             {commit.hash}
-          </button>
+          </code>
           {details?.body && details.body.trim() !== commit.subject.trim() && (
             <pre className="git-commit-body">{details.body.trim()}</pre>
           )}
         </section>
 
-        {detailsError && <div className="git-inline-error">{detailsError}</div>}
+        {detailsError && <div className="git-inline-error" role="alert">{detailsError}</div>}
         {!details && !detailsError && (
-          <div className="git-detail-loading">
+          <div className="git-detail-loading" role="status">
             <Icon name="Loading" className="animate-spin" />
             Loading commit details
           </div>
@@ -502,7 +502,7 @@ function CommitDetail({
               <span>{selectedFile}</span>
             </div>
             {patchLoading && (
-              <div className="git-detail-loading">
+              <div className="git-detail-loading" role="status">
                 <Icon name="Loading" className="animate-spin" />
                 Loading diff
               </div>
