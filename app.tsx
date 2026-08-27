@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -26,6 +27,7 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Icon } from "@/components/ui/icon";
+import { visibleRefPillCount } from "./ref-layout";
 import "./app.css";
 
 const PAGE_SIZE = 200;
@@ -141,19 +143,90 @@ function refClass(ref: GitRef): string {
   }
 }
 
+function refLabel(ref: GitRef): string {
+  return ref.isHead ? `HEAD → ${ref.name}` : ref.name;
+}
+
 function RefPills({ refs, limit = 2 }: { refs: GitRef[]; limit?: number }) {
+  const maximumVisible = Math.min(refs.length, limit);
+  const [visibleCount, setVisibleCount] = useState(maximumVisible);
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const measurementsRef = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const measurements = measurementsRef.current;
+    const parent = container?.parentElement;
+    if (!container || !measurements || !parent) return;
+
+    const update = () => {
+      const styles = getComputedStyle(container);
+      if (styles.display === "none") return;
+
+      const maxWidth = styles.maxWidth.trim();
+      const availableWidth = maxWidth.endsWith("%")
+        ? parent.clientWidth * (Number.parseFloat(maxWidth) / 100)
+        : Math.min(parent.clientWidth, Number.parseFloat(maxWidth) || parent.clientWidth);
+      const counterWidths: Record<number, number> = {};
+
+      for (const counter of Array.from(
+        measurements.querySelectorAll<HTMLElement>("[data-hidden-count]"),
+      )) {
+        const hiddenCount = Number(counter.dataset.hiddenCount);
+        counterWidths[hiddenCount] = counter.getBoundingClientRect().width;
+      }
+
+      setVisibleCount(visibleRefPillCount({
+        availableWidth,
+        counterWidths,
+        limit,
+        total: refs.length,
+      }));
+    };
+
+    update();
+    const observer = typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(update);
+    observer?.observe(parent);
+    window.addEventListener("resize", update);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [limit, refs]);
+
+  const visible = refs.slice(0, visibleCount);
+  const hiddenCount = refs.length - visibleCount;
+  const possibleHiddenCounts = Array.from(
+    { length: maximumVisible + 1 },
+    (_, visible) => refs.length - visible,
+  ).filter((count) => count > 0);
+
   if (refs.length === 0) return null;
-  const visible = refs.slice(0, limit);
+
   return (
-    <span className="git-refs" aria-label={refs.map((ref) => ref.name).join(", ")}>
+    <span
+      className="git-refs"
+      aria-label={refs.map((ref) => ref.name).join(", ")}
+      ref={containerRef}
+    >
       {visible.map((ref) => (
-        <span className={`git-ref ${refClass(ref)}`} key={ref.fullName}>
-          {ref.isHead ? `HEAD → ${ref.name}` : ref.name}
+        <span className={`git-ref ${refClass(ref)}`} key={ref.fullName} title={refLabel(ref)}>
+          <span className="git-ref-label">{refLabel(ref)}</span>
         </span>
       ))}
-      {refs.length > limit && (
-        <span className="git-ref git-ref-muted">+{refs.length - limit}</span>
+      {hiddenCount > 0 && (
+        <span className="git-ref-overflow" aria-hidden="true">+{hiddenCount}</span>
       )}
+      <span className="git-ref-measurements" aria-hidden="true" ref={measurementsRef}>
+        {possibleHiddenCounts.map((count) => (
+          <span className="git-ref-overflow" data-hidden-count={count} key={count}>
+            +{count}
+          </span>
+        ))}
+      </span>
     </span>
   );
 }

@@ -885,13 +885,17 @@
 .git-refs {
   max-width: 44%;
   display: inline-flex;
-  flex: 0 1 auto;
+  position: relative;
+  width: max-content;
+  flex: 0 0 auto;
   align-items: center;
   gap: 4px;
   overflow: hidden;
 }
 
 .git-ref {
+  box-sizing: border-box;
+  min-width: 44px;
   max-width: 128px;
   height: 16px;
   display: inline-flex;
@@ -903,11 +907,36 @@
   padding: 0 6px;
   background: transparent;
   color: color-mix(in srgb, var(--gh-accent) 72%, var(--gh-secondary));
-  text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 10px;
   font-weight: 400;
   line-height: 14px;
+}
+
+.git-ref-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-ref-overflow {
+  flex: 0 0 auto;
+  color: var(--gh-quaternary);
+  white-space: nowrap;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+}
+
+.git-ref-measurements {
+  position: absolute;
+  visibility: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  pointer-events: none;
 }
 
 .git-ref-head {
