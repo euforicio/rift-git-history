@@ -2,6 +2,18 @@
 
 All notable changes to Git History are documented here.
 
+## [0.2.0] - 2026-08-26
+
+### Added
+
+- File diffs can switch between wrapped long lines and horizontal scrolling.
+
+### Fixed
+
+- Ref labels now collapse into a `+N` counter before they overflow narrow panels.
+- Expanded commit messages wrap instead of truncating long text.
+- Internal t3 checkpoint refs and checkpoint-only commits no longer appear in history.
+
 ## [0.1.1] - 2026-08-24
 
 ### Fixed
