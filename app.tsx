@@ -488,6 +488,7 @@ function FileDiffPanel({
   const [path, setPath] = useState(initialPath);
   const [patch, setPatch] = useState<CommitPatch | null>(null);
   const [patchError, setPatchError] = useState<string | null>(null);
+  const [wrapLines, setWrapLines] = useState(false);
   const fileIndex = Math.max(0, details.files.findIndex((file) => file.path === path));
   const file = details.files[fileIndex] ?? null;
   const filename = pathParts(path).filename || path;
@@ -532,6 +533,17 @@ function FileDiffPanel({
             {file.deletions !== null && <span>−{file.deletions}</span>}
           </div>
         )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="git-icon-button"
+          aria-label="Wrap long lines"
+          aria-pressed={wrapLines}
+          title="Wrap long lines"
+          onClick={() => setWrapLines((current) => !current)}
+        >
+          <Icon name="TextWrap" aria-hidden="true" />
+        </Button>
       </div>
 
       <div className="git-file-strip" aria-label="Changed files">
@@ -561,7 +573,13 @@ function FileDiffPanel({
           </div>
         )}
         {patchError && <div className="git-inline-error" role="alert">{patchError}</div>}
-        {patch?.patch && <Diff patch={patch.patch} path={patch.path} overflow="scroll" />}
+        {patch?.patch && (
+          <Diff
+            patch={patch.patch}
+            path={patch.path}
+            overflow={wrapLines ? "wrap" : "scroll"}
+          />
+        )}
         {patch && !patch.patch && (
           <div className="git-empty-files">No textual diff for this file.</div>
         )}
