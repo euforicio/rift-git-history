@@ -2,6 +2,14 @@
 
 All notable changes to Git History are documented here.
 
+## [0.3.0] - 2026-08-28
+
+### Added
+
+- Uncommitted files now appear above commit history, including staged, modified, deleted, and untracked files.
+- Working-tree files open in the native diff viewer when a textual patch is available.
+- The Uncommitted section can be expanded or collapsed and starts collapsed by default.
+
 ## [0.2.0] - 2026-08-26
 
 ### Added

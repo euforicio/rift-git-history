@@ -11,7 +11,7 @@ remote-tracking branches, tags, stashes, and shared worktree history.
 Install the latest compatible release from GitHub:
 
 ```sh
-bb plugin install git:https://github.com/yusuf8834/bb-git-history.git@^0.1.0
+bb plugin install git:https://github.com/yusuf8834/bb-git-history.git@^0.3.0
 ```
 
 For local development:
@@ -32,6 +32,7 @@ History is also available from the right panel's Actions list.
 - Local, remote, tag, stash, and `HEAD` labels
 - Commit author, date, full message, and first-parent changed files
 - Per-file patches rendered by bb's native diff viewer
+- Collapsible uncommitted-file list with working-tree diffs
 - Infinite loading with virtualized rows
 
 The plugin does not run checkout, reset, merge, rebase, or other Git mutations.
