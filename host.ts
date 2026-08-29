@@ -286,6 +286,80 @@ function parseNumStat(
     .filter((file) => file.path.length > 0);
 }
 
+function parseWorkingTreeStatuses(
+  raw: string,
+): Map<string, GitFileChange["status"]> {
+  const statuses = new Map<string, GitFileChange["status"]>();
+
+  for (const record of raw.split("\0")) {
+    if (record.length < 4) continue;
+    const code = record.slice(0, 2);
+    const path = record.slice(3);
+    if (!path) continue;
+
+    let status: GitFileChange["status"] = "unknown";
+    if (code === "??" || code.includes("A")) status = "added";
+    else if (code.includes("D")) status = "deleted";
+    else if (code.includes("R")) status = "renamed";
+    else if (code.includes("C")) status = "copied";
+    else if (code.includes("T")) status = "type-changed";
+    else if (code.includes("M")) status = "modified";
+
+    statuses.set(path, status);
+  }
+
+  return statuses;
+}
+
+async function readWorkingTreeFiles(
+  repoRoot: string,
+  signal: AbortSignal,
+): Promise<GitFileChange[]> {
+  const [rawStatus, headHash] = await Promise.all([
+    runGit(
+      repoRoot,
+      [
+        "-c",
+        "status.renames=false",
+        "status",
+        "--porcelain=v1",
+        "-z",
+        "--untracked-files=all",
+      ],
+      signal,
+    ),
+    runGitOptional(repoRoot, ["rev-parse", "--verify", "HEAD"], signal),
+  ]);
+  const statuses = parseWorkingTreeStatuses(rawStatus);
+  if (statuses.size === 0) return [];
+
+  const rawStats = await runGitOptional(
+    repoRoot,
+    [
+      "diff",
+      "--no-renames",
+      "--numstat",
+      "-z",
+      ...(headHash ? ["HEAD"] : ["--cached"]),
+      "--",
+    ],
+    signal,
+  );
+  const statsByPath = new Map(
+    parseNumStat(rawStats ?? "", statuses).map((file) => [file.path, file]),
+  );
+
+  return Array.from(statuses, ([path, status]) => {
+    const stats = statsByPath.get(path);
+    return {
+      path,
+      status,
+      additions: stats?.additions ?? null,
+      deletions: stats?.deletions ?? null,
+    };
+  }).sort((left, right) => left.path.localeCompare(right.path));
+}
+
 async function readCommitDetails(
   repoRoot: string,
   hash: string,
@@ -329,7 +403,7 @@ export default experimental_defineHostEntry({
   handlers: {
     async history({ repoPath, offset, limit }, context) {
       const repoRoot = await resolveRepository(repoPath, context.signal);
-      const [{ byHash, currentBranch }, rawHistory, rawCount] = await Promise.all([
+      const [{ byHash, currentBranch }, rawHistory, rawCount, uncommittedFiles] = await Promise.all([
         readRefs(repoRoot, context.signal),
         runGit(
           repoRoot,
@@ -348,6 +422,7 @@ export default experimental_defineHostEntry({
           ["rev-list", ...VISIBLE_HISTORY_REVISIONS, "--count"],
           context.signal,
         ),
+        readWorkingTreeFiles(repoRoot, context.signal),
       ]);
 
       const parsed = parseCommitFields(rawHistory, byHash);
@@ -357,6 +432,7 @@ export default experimental_defineHostEntry({
       return {
         repoName: basename(repoRoot),
         currentBranch,
+        uncommittedFiles,
         commits,
         offset,
         total: Number.parseInt(rawCount.trim(), 10) || commits.length,
@@ -383,6 +459,40 @@ export default experimental_defineHostEntry({
           "--first-parent",
           "--unified=3",
           hash,
+          "--",
+          path,
+        ],
+        context.signal,
+      );
+      const truncated = rawPatch.length > MAX_PATCH_CHARS;
+      return {
+        path,
+        patch: truncated ? rawPatch.slice(0, MAX_PATCH_CHARS) : rawPatch,
+        truncated,
+      };
+    },
+
+    async workingPatch({ repoPath, path }, context) {
+      const repoRoot = await resolveRepository(repoPath, context.signal);
+      const files = await readWorkingTreeFiles(repoRoot, context.signal);
+      if (!files.some((file) => file.path === path)) {
+        throw new Error(`Uncommitted file ${path} was not found.`);
+      }
+
+      const headHash = await runGitOptional(
+        repoRoot,
+        ["rev-parse", "--verify", "HEAD"],
+        context.signal,
+      );
+      const rawPatch = await runGit(
+        repoRoot,
+        [
+          "diff",
+          "--no-renames",
+          "--no-color",
+          "--no-ext-diff",
+          "--unified=3",
+          ...(headHash ? ["HEAD"] : ["--cached"]),
           "--",
           path,
         ],

@@ -63,6 +63,7 @@ export default function plugin(bb: BbPluginApi) {
         return {
           repoName: "Git history",
           currentBranch: null,
+          uncommittedFiles: [],
           commits: [],
           offset,
           total: 0,
@@ -86,6 +87,15 @@ export default function plugin(bb: BbPluginApi) {
       return host.call(
         "patch",
         { repoPath: target.repoPath, hash, path },
+        { hostId: target.hostId },
+      );
+    },
+
+    async workingPatch({ threadId, path }) {
+      const target = await repositoryForThread(bb, threadId);
+      return host.call(
+        "workingPatch",
+        { repoPath: target.repoPath, path },
         { hostId: target.hostId },
       );
     },

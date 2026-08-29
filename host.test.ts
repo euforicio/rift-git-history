@@ -113,4 +113,41 @@ describe("Git history host entry", () => {
 
     await harness.experimental_dispose();
   });
+
+  it("lists uncommitted files and loads their patches", async () => {
+    writeFileSync(join(repo, "README.md"), "base\nworking tree line\n");
+    writeFileSync(join(repo, "staged.txt"), "staged line\n");
+    writeFileSync(join(repo, "untracked.txt"), "untracked line\n");
+    git(repo, "add", "staged.txt");
+    rmSync(join(repo, "main.txt"));
+
+    const harness = experimental_createHostEntryHarness(hostEntry);
+    const history = await harness.experimental_call("history", {
+      repoPath: repo,
+      offset: 0,
+      limit: 20,
+    });
+    const patch = await harness.experimental_call("workingPatch", {
+      repoPath: repo,
+      path: "README.md",
+    });
+
+    expect(history.uncommittedFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: "README.md", status: "modified", additions: 1 }),
+        expect.objectContaining({ path: "main.txt", status: "deleted" }),
+        expect.objectContaining({ path: "staged.txt", status: "added", additions: 1 }),
+        expect.objectContaining({
+          path: "untracked.txt",
+          status: "added",
+          additions: null,
+          deletions: null,
+        }),
+      ]),
+    );
+    expect(patch.patch).toContain("working tree line");
+    expect(patch.truncated).toBe(false);
+
+    await harness.experimental_dispose();
+  });
 });

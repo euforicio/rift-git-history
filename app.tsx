@@ -33,6 +33,8 @@ import "./app.css";
 const PAGE_SIZE = 200;
 const COMMIT_ROW_HEIGHT = 31;
 const DATE_HEADER_HEIGHT = 24;
+const UNCOMMITTED_HEADER_HEIGHT = 28;
+const UNCOMMITTED_FILE_HEIGHT = 27;
 const GRAPH_WIDTH = 38;
 
 function errorMessage(error: unknown): string {
@@ -77,6 +79,16 @@ function dateGroupLabel(value: string): string {
 
 type HistoryListItem =
   | {
+    kind: "uncommitted-header";
+    key: string;
+    count: number;
+  }
+  | {
+    kind: "uncommitted-file";
+    key: string;
+    file: GitFileChange;
+  }
+  | {
     kind: "date";
     key: string;
     label: string;
@@ -90,7 +102,11 @@ type HistoryListItem =
     showAuthor: boolean;
   };
 
-function historyListItems(commits: GitCommitSummary[]): HistoryListItem[] {
+function historyListItems(
+  commits: GitCommitSummary[],
+  uncommittedFiles: GitFileChange[],
+  uncommittedExpanded: boolean,
+): HistoryListItem[] {
   const groups: Array<{ key: string; label: string; commits: Array<{ commit: GitCommitSummary; index: number }> }> = [];
   for (const [index, commit] of commits.entries()) {
     const key = calendarKey(commit.authorDate);
@@ -106,7 +122,7 @@ function historyListItems(commits: GitCommitSummary[]): HistoryListItem[] {
     }
   }
 
-  return groups.flatMap((group) => [
+  const commitItems = groups.flatMap((group) => [
     {
       kind: "date" as const,
       key: `date-${group.key}-${group.commits[0]!.commit.hash}`,
@@ -121,6 +137,23 @@ function historyListItems(commits: GitCommitSummary[]): HistoryListItem[] {
       showAuthor: groupIndex === 0 || group.commits[groupIndex - 1]?.commit.authorName !== commit.authorName,
     })),
   ]);
+
+  if (uncommittedFiles.length === 0) return commitItems;
+  const uncommittedHeader: HistoryListItem = {
+    kind: "uncommitted-header",
+    key: "uncommitted-header",
+    count: uncommittedFiles.length,
+  };
+  if (!uncommittedExpanded) return [uncommittedHeader, ...commitItems];
+  return [
+    uncommittedHeader,
+    ...uncommittedFiles.map((file) => ({
+      kind: "uncommitted-file" as const,
+      key: `uncommitted-${file.path}`,
+      file,
+    })),
+    ...commitItems,
+  ];
 }
 
 function subjectParts(subject: string): { prefix: string | null; text: string } {
@@ -257,6 +290,8 @@ function commitMatches(commit: GitCommitSummary, rawQuery: string): boolean {
 function CommitList({
   threadId,
   commits,
+  uncommittedFiles,
+  uncommittedExpanded,
   hasMore,
   loadingMore,
   query,
@@ -264,9 +299,13 @@ function CommitList({
   onLoadMore,
   onToggleCommit,
   onOpenDiff,
+  onOpenWorkingDiff,
+  onToggleUncommitted,
 }: {
   threadId: string;
   commits: GitCommitSummary[];
+  uncommittedFiles: GitFileChange[];
+  uncommittedExpanded: boolean;
   hasMore: boolean;
   loadingMore: boolean;
   query: string;
@@ -274,9 +313,14 @@ function CommitList({
   onLoadMore: () => void;
   onToggleCommit: (hash: string) => void;
   onOpenDiff: (commit: GitCommitSummary, details: CommitDetails, path: string) => void;
+  onOpenWorkingDiff: (path: string) => void;
+  onToggleUncommitted: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const listItems = useMemo(() => historyListItems(commits), [commits]);
+  const listItems = useMemo(
+    () => historyListItems(commits, uncommittedFiles, uncommittedExpanded),
+    [commits, uncommittedExpanded, uncommittedFiles],
+  );
   const matches = useMemo(
     () => commits.map((commit) => commitMatches(commit, query)),
     [commits, query],
@@ -285,9 +329,18 @@ function CommitList({
     count: listItems.length,
     getScrollElement: () => scrollRef.current,
     getItemKey: (index) => listItems[index]?.key ?? index,
-    estimateSize: (index) => listItems[index]?.kind === "date"
-      ? DATE_HEADER_HEIGHT
-      : COMMIT_ROW_HEIGHT,
+    estimateSize: (index) => {
+      switch (listItems[index]?.kind) {
+        case "date":
+          return DATE_HEADER_HEIGHT;
+        case "uncommitted-header":
+          return UNCOMMITTED_HEADER_HEIGHT;
+        case "uncommitted-file":
+          return UNCOMMITTED_FILE_HEIGHT;
+        default:
+          return COMMIT_ROW_HEIGHT;
+      }
+    },
     overscan: 12,
   });
   const virtualItems = virtualizer.getVirtualItems();
@@ -311,7 +364,7 @@ function CommitList({
 
   useEffect(() => {
     virtualizer.measure();
-  }, [expandedHash, virtualizer]);
+  }, [expandedHash, uncommittedExpanded, virtualizer]);
 
   return (
     <div className="git-history-scroll" ref={scrollRef} role="list">
@@ -333,6 +386,68 @@ function CommitList({
         {virtualItems.map((virtualRow) => {
           const item = listItems[virtualRow.index];
           if (!item) return null;
+          if (item.kind === "uncommitted-header") {
+            return (
+              <div
+                className="git-uncommitted-header-listitem"
+                data-index={virtualRow.index}
+                key={item.key}
+                ref={virtualizer.measureElement}
+                role="listitem"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+                <button
+                  className="git-uncommitted-header"
+                  aria-expanded={uncommittedExpanded}
+                  onClick={onToggleUncommitted}
+                  title={uncommittedExpanded
+                    ? "Collapse uncommitted files"
+                    : "Expand uncommitted files"}
+                >
+                  <Icon
+                    name="ChevronRight"
+                    className="git-uncommitted-toggle-icon"
+                    aria-hidden="true"
+                  />
+                  <span>Uncommitted</span>
+                  <span className="git-date-rule" />
+                  <span>{item.count}</span>
+                </button>
+              </div>
+            );
+          }
+          if (item.kind === "uncommitted-file") {
+            const parts = pathParts(item.file.path);
+            return (
+              <div
+                className="git-uncommitted-file-listitem"
+                data-index={virtualRow.index}
+                key={item.key}
+                ref={virtualizer.measureElement}
+                role="listitem"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+                <button
+                  className="git-uncommitted-file-row"
+                  onClick={() => onOpenWorkingDiff(item.file.path)}
+                  title={`Open uncommitted diff for ${item.file.path}`}
+                >
+                  <span className={`git-file-status git-file-status-${item.file.status}`}>
+                    <span className="sr-only">{item.file.status}</span>
+                    {statusLetter(item.file.status)}
+                  </span>
+                  <span className="git-file-path">
+                    {parts.directory && <span>{parts.directory}</span>}
+                    <strong>{parts.filename}</strong>
+                  </span>
+                  <span className="git-file-stats">
+                    {item.file.additions !== null && <span>+{item.file.additions}</span>}
+                    {item.file.deletions !== null && <span>−{item.file.deletions}</span>}
+                  </span>
+                </button>
+              </div>
+            );
+          }
           if (item.kind === "date") {
             return (
               <div
@@ -546,14 +661,16 @@ function InlineCommitFiles({
 
 function FileDiffPanel({
   threadId,
-  commit,
-  details,
+  source,
+  files,
   initialPath,
   onBack,
 }: {
   threadId: string;
-  commit: GitCommitSummary;
-  details: CommitDetails;
+  source:
+    | { kind: "commit"; hash: string; label: string }
+    | { kind: "working-tree"; label: string };
+  files: GitFileChange[];
   initialPath: string;
   onBack: () => void;
 }) {
@@ -562,16 +679,18 @@ function FileDiffPanel({
   const [patch, setPatch] = useState<CommitPatch | null>(null);
   const [patchError, setPatchError] = useState<string | null>(null);
   const [wrapLines, setWrapLines] = useState(false);
-  const fileIndex = Math.max(0, details.files.findIndex((file) => file.path === path));
-  const file = details.files[fileIndex] ?? null;
+  const fileIndex = Math.max(0, files.findIndex((file) => file.path === path));
+  const file = files[fileIndex] ?? null;
   const filename = pathParts(path).filename || path;
 
   useEffect(() => {
     let active = true;
     setPatch(null);
     setPatchError(null);
-    void rpc
-      .call("patch", { threadId, hash: commit.hash, path })
+    const request = source.kind === "commit"
+      ? rpc.call("patch", { threadId, hash: source.hash, path })
+      : rpc.call("workingPatch", { threadId, path });
+    void request
       .then((result) => {
         if (active) setPatch(result);
       })
@@ -581,7 +700,7 @@ function FileDiffPanel({
     return () => {
       active = false;
     };
-  }, [commit.hash, path, rpc, threadId]);
+  }, [path, rpc, source, threadId]);
 
   return (
     <div className="git-history-panel git-diff-panel">
@@ -598,7 +717,7 @@ function FileDiffPanel({
         </Button>
         <div className="git-diff-title">
           <strong title={path}>{filename}</strong>
-          <span title={commit.subject}>{commit.subject} · {commit.hash.slice(0, 7)}</span>
+          <span title={source.label}>{source.label}</span>
         </div>
         {file && (
           <div className="git-diff-stats">
@@ -620,9 +739,9 @@ function FileDiffPanel({
       </div>
 
       <div className="git-file-strip" aria-label="Changed files">
-        <span>{fileIndex + 1} / {details.files.length}</span>
+        <span>{fileIndex + 1} / {files.length}</span>
         <div>
-          {details.files.map((candidate) => {
+          {files.map((candidate) => {
             const candidateName = pathParts(candidate.path).filename || candidate.path;
             return (
               <button
@@ -675,10 +794,16 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
   const [page, setPage] = useState<HistoryPage | null>(null);
   const [commits, setCommits] = useState<GitCommitSummary[]>([]);
   const [query, setQuery] = useState("");
+  const [uncommittedExpanded, setUncommittedExpanded] = useState(false);
   const [expandedHash, setExpandedHash] = useState<string | null>(null);
   const [diffView, setDiffView] = useState<{
+    kind: "commit";
     commit: GitCommitSummary;
     details: CommitDetails;
+    path: string;
+  } | {
+    kind: "working-tree";
+    files: GitFileChange[];
     path: string;
   } | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -729,6 +854,7 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
   useEffect(() => {
     setCommits([]);
     setPage(null);
+    setUncommittedExpanded(false);
     setExpandedHash(null);
     setDiffView(null);
     void loadHistory(true);
@@ -744,6 +870,8 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
     () => commits.filter((commit) => commitMatches(commit, query)).length,
     [commits, query],
   );
+  const uncommittedFiles = page?.uncommittedFiles ?? [];
+  const hasHistoryItems = commits.length > 0 || uncommittedFiles.length > 0;
 
   return (
     <div className="git-history-view-stack">
@@ -811,17 +939,19 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
         </div>
       )}
 
-      {!initialLoading && !error && commits.length === 0 && (
+      {!initialLoading && !error && !hasHistoryItems && (
         <div className="git-state" role="status">
           <Icon name="FolderGit" />
           <span>This repository has no reachable commits.</span>
         </div>
       )}
 
-      {commits.length > 0 && (
+      {hasHistoryItems && (
         <CommitList
           threadId={threadId}
           commits={commits}
+          uncommittedFiles={uncommittedFiles}
+          uncommittedExpanded={uncommittedExpanded}
           hasMore={page?.hasMore ?? false}
           loadingMore={loadingMore}
           query={query}
@@ -831,12 +961,18 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
             setExpandedHash((current) => current === hash ? null : hash);
           }}
           onOpenDiff={(commit, details, path) => {
-            setDiffView({ commit, details, path });
+            setDiffView({ kind: "commit", commit, details, path });
+          }}
+          onOpenWorkingDiff={(path) => {
+            setDiffView({ kind: "working-tree", files: uncommittedFiles, path });
+          }}
+          onToggleUncommitted={() => {
+            setUncommittedExpanded((current) => !current);
           }}
         />
       )}
 
-      {commits.length > 0 && (
+      {hasHistoryItems && (
         <div className="git-footer">
           <span>{commits.length.toLocaleString()} commits</span>
           <span aria-hidden="true">·</span>
@@ -846,10 +982,16 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
       </div>
       {diffView && (
         <FileDiffPanel
-          key={diffView.commit.hash}
+          key={diffView.kind === "commit" ? diffView.commit.hash : "working-tree"}
           threadId={threadId}
-          commit={diffView.commit}
-          details={diffView.details}
+          source={diffView.kind === "commit"
+            ? {
+              kind: "commit",
+              hash: diffView.commit.hash,
+              label: `${diffView.commit.subject} · ${diffView.commit.hash.slice(0, 7)}`,
+            }
+            : { kind: "working-tree", label: "Uncommitted changes" }}
+          files={diffView.kind === "commit" ? diffView.details.files : diffView.files}
           initialPath={diffView.path}
           onBack={() => setDiffView(null)}
         />

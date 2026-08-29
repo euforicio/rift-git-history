@@ -36,6 +36,7 @@ export const historyPageSchema = z
   .object({
     repoName: z.string(),
     currentBranch: z.string().nullable(),
+    uncommittedFiles: z.array(gitFileChangeSchema),
     commits: z.array(gitCommitSummarySchema),
     offset: z.number().int().nonnegative(),
     total: z.number().int().nonnegative(),
@@ -72,6 +73,13 @@ const threadCommitInputSchema = z
   })
   .strict();
 
+const threadWorkingTreeInputSchema = z
+  .object({
+    threadId: z.string().min(1),
+    path: z.string().min(1).max(16_384),
+  })
+  .strict();
+
 export const rpcContract = defineRpcContract({
   history: {
     input: threadHistoryInputSchema,
@@ -83,6 +91,10 @@ export const rpcContract = defineRpcContract({
   },
   patch: {
     input: threadCommitInputSchema.extend({ path: z.string().min(1).max(16_384) }),
+    output: commitPatchSchema,
+  },
+  workingPatch: {
+    input: threadWorkingTreeInputSchema,
     output: commitPatchSchema,
   },
 });
@@ -110,6 +122,12 @@ export const hostContract = defineRpcContract({
   patch: {
     input: hostRepositoryInputSchema.extend({
       hash: z.string().min(4).max(128),
+      path: z.string().min(1).max(16_384),
+    }),
+    output: commitPatchSchema,
+  },
+  workingPatch: {
+    input: hostRepositoryInputSchema.extend({
       path: z.string().min(1).max(16_384),
     }),
     output: commitPatchSchema,

@@ -36,6 +36,7 @@ describe("Git history server", () => {
     const historyPage: HistoryPage = {
       repoName: "late-init-repo",
       currentBranch: "main",
+      uncommittedFiles: [],
       commits: [],
       offset: 0,
       total: 0,
@@ -49,7 +50,9 @@ describe("Git history server", () => {
           get: async () => thread,
         },
       },
-      experimental_callHostRpc: async () => historyPage,
+      experimental_callHostRpc: async ({ method }) => method === "workingPatch"
+        ? { path: "README.md", patch: "@@ -1 +1,2 @@", truncated: false }
+        : historyPage,
     });
     plugin(bb);
 
@@ -81,5 +84,24 @@ describe("Git history server", () => {
         },
       },
     ]);
+
+    const patch = await harness.behavior.callRpc("workingPatch", {
+      threadId: "thread-1",
+      path: "README.md",
+    });
+
+    expect(patch).toEqual({
+      path: "README.md",
+      patch: "@@ -1 +1,2 @@",
+      truncated: false,
+    });
+    expect(harness.inspection.experimental_hostRpcCalls.at(-1)).toEqual({
+      method: "workingPatch",
+      hostId: "host-1",
+      input: {
+        repoPath: "/workspace/plain-folder",
+        path: "README.md",
+      },
+    });
   });
 });
