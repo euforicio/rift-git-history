@@ -28,3 +28,6 @@ Thumbs.db
 
 # Local bb state
 .bb/
+
+# Local agent instructions
+AGENTS.md

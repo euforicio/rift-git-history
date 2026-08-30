@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type RefObject,
 } from "react";
 import {
   definePluginApp,
@@ -27,10 +28,12 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Icon } from "@/components/ui/icon";
+import { fetchHistorySnapshot } from "./history-refresh";
 import { visibleRefPillCount } from "./ref-layout";
 import "./app.css";
 
 const PAGE_SIZE = 200;
+const AUTO_REFRESH_INTERVAL_MS = 15_000;
 const COMMIT_ROW_HEIGHT = 31;
 const DATE_HEADER_HEIGHT = 24;
 const UNCOMMITTED_HEADER_HEIGHT = 28;
@@ -296,6 +299,7 @@ function CommitList({
   loadingMore,
   query,
   expandedHash,
+  scrollRef,
   onLoadMore,
   onToggleCommit,
   onOpenDiff,
@@ -310,13 +314,13 @@ function CommitList({
   loadingMore: boolean;
   query: string;
   expandedHash: string | null;
+  scrollRef: RefObject<HTMLDivElement | null>;
   onLoadMore: () => void;
   onToggleCommit: (hash: string) => void;
   onOpenDiff: (commit: GitCommitSummary, details: CommitDetails, path: string) => void;
   onOpenWorkingDiff: (path: string) => void;
   onToggleUncommitted: () => void;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
   const listItems = useMemo(
     () => historyListItems(commits, uncommittedFiles, uncommittedExpanded),
     [commits, uncommittedExpanded, uncommittedFiles],
@@ -810,26 +814,43 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestSequence = useRef(0);
+  const historyRevisionRef = useRef<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pendingScrollRestore = useRef<number | null>(null);
 
   const loadHistory = useCallback(
-    async (reset: boolean) => {
+    async (reset: boolean, options?: { silent?: boolean }) => {
       const sequence = ++requestSequence.current;
       const offset = reset ? 0 : commits.length;
       if (reset) {
-        setInitialLoading(true);
+        if (options?.silent && scrollRef.current) {
+          pendingScrollRestore.current = scrollRef.current.scrollTop;
+        }
+        if (!options?.silent) {
+          setInitialLoading(true);
+        }
         setError(null);
       } else {
         setLoadingMore(true);
       }
 
       try {
-        const result = await rpc.call("history", {
-          threadId,
-          offset,
-          limit: PAGE_SIZE,
-        });
+        const fetchPage = (pageOffset: number, limit: number) =>
+          rpc.call("history", {
+            threadId,
+            offset: pageOffset,
+            limit,
+          });
+        const result = reset
+          ? await fetchHistorySnapshot(
+            fetchPage,
+            options?.silent ? Math.max(commits.length, PAGE_SIZE) : PAGE_SIZE,
+            PAGE_SIZE,
+          )
+          : await fetchPage(offset, PAGE_SIZE);
         if (sequence !== requestSequence.current) return;
         setPage(result);
+        historyRevisionRef.current = result.revision;
         setError(result.unavailableReason);
         setCommits((current) => {
           if (reset) return result.commits;
@@ -851,14 +872,78 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
     [commits.length, rpc, threadId],
   );
 
+  useLayoutEffect(() => {
+    if (pendingScrollRestore.current === null || !scrollRef.current) return;
+    scrollRef.current.scrollTop = pendingScrollRestore.current;
+    pendingScrollRestore.current = null;
+  }, [commits, page?.revision]);
+
   useEffect(() => {
     setCommits([]);
     setPage(null);
     setUncommittedExpanded(false);
     setExpandedHash(null);
     setDiffView(null);
+    historyRevisionRef.current = null;
     void loadHistory(true);
   }, [threadId]);
+
+  useEffect(() => {
+    if (initialLoading) return;
+
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const schedule = (delay = AUTO_REFRESH_INTERVAL_MS) => {
+      timeoutId = setTimeout(() => {
+        void tick();
+      }, delay);
+    };
+
+    const tick = async () => {
+      if (cancelled) return;
+      if (document.hidden || diffView !== null) {
+        schedule();
+        return;
+      }
+
+      try {
+        const result = await rpc.call("historyRevision", { threadId });
+        if (cancelled) return;
+        if (result.unavailableReason) {
+          schedule();
+          return;
+        }
+
+        const previousRevision = historyRevisionRef.current;
+        if (previousRevision !== null && result.revision !== previousRevision) {
+          await loadHistory(true, { silent: true });
+        } else if (previousRevision === null) {
+          historyRevisionRef.current = result.revision;
+        }
+      } catch {
+        // Ignore transient poll failures.
+      }
+
+      schedule();
+    };
+
+    const onVisibilityChange = () => {
+      if (!document.hidden && diffView === null) {
+        clearTimeout(timeoutId);
+        void tick();
+      }
+    };
+
+    schedule();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [diffView, initialLoading, loadHistory, rpc, threadId]);
 
   useEffect(() => {
     if (expandedHash && !commits.some((commit) => commit.hash === expandedHash)) {
@@ -956,6 +1041,7 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
           loadingMore={loadingMore}
           query={query}
           expandedHash={expandedHash}
+          scrollRef={scrollRef}
           onLoadMore={() => void loadHistory(false)}
           onToggleCommit={(hash) => {
             setExpandedHash((current) => current === hash ? null : hash);

@@ -41,6 +41,7 @@ describe("Git history server", () => {
       offset: 0,
       total: 0,
       hasMore: false,
+      revision: "abc123\0main\0",
       unavailableReason: null,
     };
     const { bb, harness } = createFakePluginHost({

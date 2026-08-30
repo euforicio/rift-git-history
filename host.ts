@@ -1,5 +1,7 @@
 import { execFile } from "node:child_process";
-import { basename, isAbsolute } from "node:path";
+import { createHash } from "node:crypto";
+import { lstat } from "node:fs/promises";
+import { basename, isAbsolute, join } from "node:path";
 import { experimental_defineHostEntry } from "@get-bb/plugin-sdk/host";
 import type {
   CommitDetails,
@@ -122,12 +124,15 @@ async function readRefs(
 ): Promise<{
   byHash: Map<string, GitRef[]>;
   currentBranch: string | null;
+  headHash: string | null;
+  revision: string;
 }> {
   const [rawRefs, rawHead, rawBranch] = await Promise.all([
     runGit(
       repoRoot,
       [
         "for-each-ref",
+        "--sort=refname",
         "--format=%(objectname)%00%(*objectname)%00%(refname)%00",
       ],
       signal,
@@ -141,6 +146,7 @@ async function readRefs(
     ? shortRefName(currentBranchRef)
     : null;
   const byHash = new Map<string, GitRef[]>();
+  const revisionRecords: string[] = [];
   const fields = rawRefs.split("\0");
 
   for (let index = 0; index + 2 < fields.length; index += 3) {
@@ -149,6 +155,7 @@ async function readRefs(
     const fullName = fields[index + 2]?.trim();
     if (!objectHash || !fullName) continue;
     if (isHiddenRef(fullName)) continue;
+    revisionRecords.push(`${objectHash}\0${peeledHash ?? ""}\0${fullName}`);
 
     const hash = peeledHash || objectHash;
     const ref: GitRef = {
@@ -183,7 +190,12 @@ async function readRefs(
     });
   }
 
-  return { byHash, currentBranch };
+  return {
+    byHash,
+    currentBranch,
+    headHash: headHash ?? null,
+    revision: revisionRecords.join("\0"),
+  };
 }
 
 function parseCommitFields(
@@ -311,27 +323,57 @@ function parseWorkingTreeStatuses(
   return statuses;
 }
 
+function buildHistoryRevision(
+  headHash: string | null,
+  currentBranch: string | null,
+  refsRevision: string,
+  workingTreeRevision: string,
+): string {
+  const hash = createHash("sha256");
+  for (const value of [
+    headHash ?? "",
+    currentBranch ?? "",
+    refsRevision,
+    workingTreeRevision,
+  ]) {
+    hash.update(`${Buffer.byteLength(value)}:`);
+    hash.update(value);
+  }
+  return hash.digest("hex");
+}
+
+async function readWorkingTreeStatus(
+  repoRoot: string,
+  signal: AbortSignal,
+): Promise<string> {
+  return runGit(
+    repoRoot,
+    [
+      "-c",
+      "status.renames=false",
+      "status",
+      "--porcelain=v1",
+      "-z",
+      "--untracked-files=all",
+    ],
+    signal,
+  );
+}
+
 async function readWorkingTreeFiles(
   repoRoot: string,
   signal: AbortSignal,
-): Promise<GitFileChange[]> {
-  const [rawStatus, headHash] = await Promise.all([
-    runGit(
-      repoRoot,
-      [
-        "-c",
-        "status.renames=false",
-        "status",
-        "--porcelain=v1",
-        "-z",
-        "--untracked-files=all",
-      ],
-      signal,
-    ),
-    runGitOptional(repoRoot, ["rev-parse", "--verify", "HEAD"], signal),
-  ]);
+): Promise<{ files: GitFileChange[]; revision: string }> {
+  const rawStatus = await readWorkingTreeStatus(repoRoot, signal);
   const statuses = parseWorkingTreeStatuses(rawStatus);
-  if (statuses.size === 0) return [];
+  const revision = await buildWorkingTreeRevision(repoRoot, rawStatus, statuses);
+  if (statuses.size === 0) return { files: [], revision };
+
+  const headHash = await runGitOptional(
+    repoRoot,
+    ["rev-parse", "--verify", "HEAD"],
+    signal,
+  );
 
   const rawStats = await runGitOptional(
     repoRoot,
@@ -349,15 +391,63 @@ async function readWorkingTreeFiles(
     parseNumStat(rawStats ?? "", statuses).map((file) => [file.path, file]),
   );
 
-  return Array.from(statuses, ([path, status]) => {
-    const stats = statsByPath.get(path);
-    return {
-      path,
-      status,
-      additions: stats?.additions ?? null,
-      deletions: stats?.deletions ?? null,
-    };
-  }).sort((left, right) => left.path.localeCompare(right.path));
+  return {
+    files: Array.from(statuses, ([path, status]) => {
+      const stats = statsByPath.get(path);
+      return {
+        path,
+        status,
+        additions: stats?.additions ?? null,
+        deletions: stats?.deletions ?? null,
+      };
+    }).sort((left, right) => left.path.localeCompare(right.path)),
+    revision,
+  };
+}
+
+async function buildWorkingTreeRevision(
+  repoRoot: string,
+  statusRaw: string,
+  statuses = parseWorkingTreeStatuses(statusRaw),
+): Promise<string> {
+  const paths = Array.from(statuses.keys()).sort((left, right) =>
+    left.localeCompare(right)
+  );
+  const metadata = await Promise.all(paths.map(async (path) => {
+    try {
+      const stats = await lstat(join(repoRoot, path), { bigint: true });
+      return [
+        path,
+        stats.mode,
+        stats.size,
+        stats.mtimeNs,
+        stats.ctimeNs,
+      ].join("\0");
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error
+        ? String(error.code)
+        : "unknown";
+      return `${path}\0${code}`;
+    }
+  }));
+  return `${statusRaw}\0${metadata.join("\0")}`;
+}
+
+async function readHistoryRevision(
+  repoRoot: string,
+  signal: AbortSignal,
+): Promise<string> {
+  const [refs, statusRaw] = await Promise.all([
+    readRefs(repoRoot, signal),
+    readWorkingTreeStatus(repoRoot, signal),
+  ]);
+  const workingTreeRevision = await buildWorkingTreeRevision(repoRoot, statusRaw);
+  return buildHistoryRevision(
+    refs.headHash,
+    refs.currentBranch,
+    refs.revision,
+    workingTreeRevision,
+  );
 }
 
 async function readCommitDetails(
@@ -403,7 +493,7 @@ export default experimental_defineHostEntry({
   handlers: {
     async history({ repoPath, offset, limit }, context) {
       const repoRoot = await resolveRepository(repoPath, context.signal);
-      const [{ byHash, currentBranch }, rawHistory, rawCount, uncommittedFiles] = await Promise.all([
+      const [{ byHash, currentBranch, headHash, revision: refsRevision }, rawHistory, rawCount, workingTree] = await Promise.all([
         readRefs(repoRoot, context.signal),
         runGit(
           repoRoot,
@@ -428,15 +518,30 @@ export default experimental_defineHostEntry({
       const parsed = parseCommitFields(rawHistory, byHash);
       const hasMore = parsed.length > limit;
       const commits = parsed.slice(0, limit).map(({ body: _body, ...commit }) => commit);
+      const revision = buildHistoryRevision(
+        headHash,
+        currentBranch,
+        refsRevision,
+        workingTree.revision,
+      );
 
       return {
         repoName: basename(repoRoot),
         currentBranch,
-        uncommittedFiles,
+        uncommittedFiles: workingTree.files,
         commits,
         offset,
         total: Number.parseInt(rawCount.trim(), 10) || commits.length,
         hasMore,
+        revision,
+        unavailableReason: null,
+      };
+    },
+
+    async historyRevision({ repoPath }, context) {
+      const repoRoot = await resolveRepository(repoPath, context.signal);
+      return {
+        revision: await readHistoryRevision(repoRoot, context.signal),
         unavailableReason: null,
       };
     },
@@ -474,7 +579,7 @@ export default experimental_defineHostEntry({
 
     async workingPatch({ repoPath, path }, context) {
       const repoRoot = await resolveRepository(repoPath, context.signal);
-      const files = await readWorkingTreeFiles(repoRoot, context.signal);
+      const { files } = await readWorkingTreeFiles(repoRoot, context.signal);
       if (!files.some((file) => file.path === path)) {
         throw new Error(`Uncommitted file ${path} was not found.`);
       }

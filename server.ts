@@ -68,6 +68,24 @@ export default function plugin(bb: BbPluginApi) {
           offset,
           total: 0,
           hasMore: false,
+          revision: "",
+          unavailableReason: error.message,
+        };
+      }
+    },
+
+    async historyRevision({ threadId }) {
+      try {
+        const target = await repositoryForThread(bb, threadId);
+        return await host.call(
+          "historyRevision",
+          { repoPath: target.repoPath },
+          { hostId: target.hostId },
+        );
+      } catch (error) {
+        if (!(error instanceof RepositoryUnavailableError)) throw error;
+        return {
+          revision: "",
           unavailableReason: error.message,
         };
       }

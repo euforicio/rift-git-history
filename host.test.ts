@@ -150,4 +150,50 @@ describe("Git history host entry", () => {
 
     await harness.experimental_dispose();
   });
+
+  it("returns a lightweight revision that changes with repeated working-tree edits", async () => {
+    const harness = experimental_createHostEntryHarness(hostEntry);
+    const clean = await harness.experimental_call("historyRevision", {
+      repoPath: repo,
+    });
+
+    writeFileSync(join(repo, "poll-refresh.txt"), "poll one\n");
+
+    const dirty = await harness.experimental_call("historyRevision", {
+      repoPath: repo,
+    });
+
+    writeFileSync(join(repo, "poll-refresh.txt"), "poll two\n");
+
+    const editedAgain = await harness.experimental_call("historyRevision", {
+      repoPath: repo,
+    });
+
+    expect(clean.revision).not.toBe(dirty.revision);
+    expect(dirty.revision).not.toBe(editedAgain.revision);
+    expect(clean.unavailableReason).toBeNull();
+    expect(dirty.unavailableReason).toBeNull();
+    expect(editedAgain.unavailableReason).toBeNull();
+
+    await harness.experimental_dispose();
+  });
+
+  it("changes the revision when a non-HEAD ref changes", async () => {
+    const harness = experimental_createHostEntryHarness(hostEntry);
+    const before = await harness.experimental_call("historyRevision", {
+      repoPath: repo,
+    });
+
+    git(repo, "update-ref", "refs/remotes/origin/poll-refresh", checkpointHash);
+
+    const after = await harness.experimental_call("historyRevision", {
+      repoPath: repo,
+    });
+
+    expect(before.revision).not.toBe(after.revision);
+    expect(before.unavailableReason).toBeNull();
+    expect(after.unavailableReason).toBeNull();
+
+    await harness.experimental_dispose();
+  });
 });

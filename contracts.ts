@@ -41,6 +41,14 @@ export const historyPageSchema = z
     offset: z.number().int().nonnegative(),
     total: z.number().int().nonnegative(),
     hasMore: z.boolean(),
+    revision: z.string(),
+    unavailableReason: z.string().nullable(),
+  })
+  .strict();
+
+export const historyRevisionSchema = z
+  .object({
+    revision: z.string(),
     unavailableReason: z.string().nullable(),
   })
   .strict();
@@ -80,10 +88,20 @@ const threadWorkingTreeInputSchema = z
   })
   .strict();
 
+const threadInputSchema = z
+  .object({
+    threadId: z.string().min(1),
+  })
+  .strict();
+
 export const rpcContract = defineRpcContract({
   history: {
     input: threadHistoryInputSchema,
     output: historyPageSchema,
+  },
+  historyRevision: {
+    input: threadInputSchema,
+    output: historyRevisionSchema,
   },
   details: {
     input: threadCommitInputSchema,
@@ -113,6 +131,10 @@ export const hostContract = defineRpcContract({
     }),
     output: historyPageSchema,
   },
+  historyRevision: {
+    input: hostRepositoryInputSchema,
+    output: historyRevisionSchema,
+  },
   details: {
     input: hostRepositoryInputSchema.extend({
       hash: z.string().min(4).max(128),
@@ -138,5 +160,6 @@ export type GitRef = z.infer<typeof gitRefSchema>;
 export type GitCommitSummary = z.infer<typeof gitCommitSummarySchema>;
 export type GitFileChange = z.infer<typeof gitFileChangeSchema>;
 export type HistoryPage = z.infer<typeof historyPageSchema>;
+export type HistoryRevision = z.infer<typeof historyRevisionSchema>;
 export type CommitDetails = z.infer<typeof commitDetailsSchema>;
 export type CommitPatch = z.infer<typeof commitPatchSchema>;
