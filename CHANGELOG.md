@@ -2,12 +2,12 @@
 
 All notable changes to Git History are documented here.
 
-## Unreleased
+## [0.4.0] - 2026-09-05
 
 ### Added
 
-- An opt-in experimental commit graph adds branch and merge lanes while keeping
-  the compact history palette and commit markers.
+- An experimental commit graph adds branch and merge lanes while keeping the
+  compact history palette and commit markers. It is enabled by default.
 - Expanded commits show the complete message and precise author metadata.
 - Frontend registration and behavior now have automated test coverage.
 

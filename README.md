@@ -29,15 +29,15 @@ want a Git folder button beside the editor controls.
 ## What it shows
 
 - Topologically ordered commits across repository refs
-- Optional experimental branch and merge lanes using the compact history style
+- Experimental branch and merge lanes using the compact history style
 - Local, remote, tag, stash, and `HEAD` labels
 - Commit author, date, full message, and first-parent changed files
 - Per-file patches rendered by bb's native diff viewer
 - Collapsible uncommitted-file list with working-tree diffs
 - Infinite loading with virtualized rows
 
-Enable **Experimental commit graph** in the plugin settings to show branch and
-merge lanes while keeping the compact history palette and commit markers.
+The experimental commit graph is enabled by default. Turn off **Experimental
+commit graph** in the plugin settings to return to the single history rail.
 
 The plugin does not run checkout, reset, merge, rebase, or other Git mutations.
 Commits reachable only through reflogs are not part of the main graph.

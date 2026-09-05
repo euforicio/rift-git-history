@@ -50,8 +50,8 @@ export default function plugin(bb: BbPluginApi) {
     experimentalCommitGraph: {
       type: "boolean",
       label: "Experimental commit graph",
-      description: "Show colored branch and merge lanes in Git History.",
-      default: false,
+      description: "Show branch and merge lanes in Git History.",
+      default: true,
     },
   });
 

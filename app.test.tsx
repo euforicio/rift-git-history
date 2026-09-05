@@ -112,12 +112,12 @@ describe("Git history app", () => {
     header.lifecycle.unmount();
   });
 
-  it("renders experimental lanes and expanded commit details", async () => {
+  it("renders default experimental lanes and expanded commit details", async () => {
     const panel = renderSlot<PluginThreadPanelProps, typeof rpcContract>(
       app.threadPanelActions[0]!,
       { threadId: "thread-1", params: null },
       {
-        settings: { experimentalCommitGraph: true },
+        settings: {},
         rpc: rpcHandlers(),
       },
     );

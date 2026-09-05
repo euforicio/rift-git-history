@@ -1258,7 +1258,7 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
           loadingMore={loadingMore}
           query={query}
           expandedHash={expandedHash}
-          experimentalGraph={settings?.experimentalCommitGraph === true}
+          experimentalGraph={settings?.experimentalCommitGraph !== false}
           scrollRef={scrollRef}
           onLoadMore={() => void loadHistory(false)}
           onToggleCommit={(hash) => {
