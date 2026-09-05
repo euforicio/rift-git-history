@@ -22,18 +22,22 @@ npm run build
 bb plugin install .
 ```
 
-Open a project thread and select the Git folder button in its header. Git
-History is also available from the right panel's Actions list.
+Open a project thread and select Git History from the right panel's Actions
+list. Enable **Show thread header shortcut** in the plugin settings if you also
+want a Git folder button beside the editor controls.
 
 ## What it shows
 
 - Topologically ordered commits across repository refs
-- Colored branch and merge lanes
+- Optional experimental branch and merge lanes using the compact history style
 - Local, remote, tag, stash, and `HEAD` labels
 - Commit author, date, full message, and first-parent changed files
 - Per-file patches rendered by bb's native diff viewer
 - Collapsible uncommitted-file list with working-tree diffs
 - Infinite loading with virtualized rows
+
+Enable **Experimental commit graph** in the plugin settings to show branch and
+merge lanes while keeping the compact history palette and commit markers.
 
 The plugin does not run checkout, reset, merge, rebase, or other Git mutations.
 Commits reachable only through reflogs are not part of the main graph.

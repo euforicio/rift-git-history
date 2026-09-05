@@ -38,7 +38,16 @@ describe("Git history host entry", () => {
     writeFileSync(join(repo, "main.txt"), "main line\n");
     git(repo, "add", "main.txt");
     git(repo, "commit", "-m", "main commit");
-    git(repo, "merge", "--no-ff", "feature", "-m", "merge feature");
+    git(
+      repo,
+      "merge",
+      "--no-ff",
+      "feature",
+      "-m",
+      "merge feature",
+      "-m",
+      "Merge body details.",
+    );
     mergeHash = git(repo, "rev-parse", "HEAD");
     git(repo, "tag", "v1.0.0");
 
@@ -103,6 +112,7 @@ describe("Git history host entry", () => {
     });
 
     expect(details.subject).toBe("merge feature");
+    expect(details.body).toContain("Merge body details.");
     expect(details.files).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ path: "feature.txt", status: "added" }),
@@ -131,6 +141,10 @@ describe("Git history host entry", () => {
       repoPath: repo,
       path: "README.md",
     });
+    const untrackedPatch = await harness.experimental_call("workingPatch", {
+      repoPath: repo,
+      path: "untracked.txt",
+    });
 
     expect(history.uncommittedFiles).toEqual(
       expect.arrayContaining([
@@ -147,6 +161,8 @@ describe("Git history host entry", () => {
     );
     expect(patch.patch).toContain("working tree line");
     expect(patch.truncated).toBe(false);
+    expect(untrackedPatch.patch).toContain("+untracked line");
+    expect(untrackedPatch.truncated).toBe(false);
 
     await harness.experimental_dispose();
   });
@@ -195,5 +211,38 @@ describe("Git history host entry", () => {
     expect(after.unavailableReason).toBeNull();
 
     await harness.experimental_dispose();
+  });
+
+  it("reports unmerged working-tree paths as conflicted", async () => {
+    const conflictRepo = mkdtempSync(join(tmpdir(), "bb-git-history-conflict-test-"));
+    try {
+      git(conflictRepo, "init", "-b", "main");
+      git(conflictRepo, "config", "user.name", "History Test");
+      git(conflictRepo, "config", "user.email", "history@example.com");
+      writeFileSync(join(conflictRepo, "conflict.txt"), "base\n");
+      git(conflictRepo, "add", "conflict.txt");
+      git(conflictRepo, "commit", "-m", "base");
+      git(conflictRepo, "checkout", "-b", "other");
+      writeFileSync(join(conflictRepo, "conflict.txt"), "other\n");
+      git(conflictRepo, "commit", "-am", "other change");
+      git(conflictRepo, "checkout", "main");
+      writeFileSync(join(conflictRepo, "conflict.txt"), "main\n");
+      git(conflictRepo, "commit", "-am", "main change");
+      expect(() => git(conflictRepo, "merge", "other")).toThrow();
+
+      const harness = experimental_createHostEntryHarness(hostEntry);
+      const history = await harness.experimental_call("history", {
+        repoPath: conflictRepo,
+        offset: 0,
+        limit: 20,
+      });
+
+      expect(history.uncommittedFiles).toContainEqual(
+        expect.objectContaining({ path: "conflict.txt", status: "conflicted" }),
+      );
+      await harness.experimental_dispose();
+    } finally {
+      rmSync(conflictRepo, { recursive: true, force: true });
+    }
   });
 });

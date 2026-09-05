@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type RefObject,
 } from "react";
 import {
@@ -25,9 +26,10 @@ import type {
   GitRef,
   HistoryPage,
 } from "./contracts";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Icon } from "@/components/ui/icon";
+import { layoutCommitGraph, type GraphRow } from "./graph";
+import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
+import { Icon } from "./components/ui/icon";
 import { fetchHistorySnapshot } from "./history-refresh";
 import { visibleRefPillCount } from "./ref-layout";
 import "./app.css";
@@ -39,6 +41,11 @@ const DATE_HEADER_HEIGHT = 24;
 const UNCOMMITTED_HEADER_HEIGHT = 28;
 const UNCOMMITTED_FILE_HEIGHT = 27;
 const GRAPH_WIDTH = 38;
+const GRAPH_MAX_WIDTH = 86;
+const GRAPH_LANE_GAP = 8;
+// Lane 0 sits exactly where the compact rail and its commit marker sit, so a
+// single-lane graph is pixel-identical to the compact history.
+const GRAPH_LANE_ORIGIN = GRAPH_WIDTH / 2;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Git history could not be loaded.";
@@ -51,6 +58,15 @@ function exactTime(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+  }).format(date);
+}
+
+function exactDateTime(value: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Unknown date";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
   }).format(date);
 }
 
@@ -278,6 +294,97 @@ function CommitSubject({ subject }: { subject: string }) {
   );
 }
 
+function laneX(lane: number, laneGap: number, laneOffset: number): number {
+  return laneOffset + lane * laneGap;
+}
+
+function GraphCell({
+  row,
+  width,
+  laneGap,
+  laneOffset,
+  isHead,
+}: {
+  row: GraphRow;
+  width: number;
+  laneGap: number;
+  laneOffset: number;
+  isHead: boolean;
+}) {
+  const middle = COMMIT_ROW_HEIGHT / 2;
+  const commitX = laneX(row.commitLane, laneGap, laneOffset);
+
+  return (
+    <span className="git-graph-node-cell" data-graph="true">
+      <svg
+        className="git-graph-cell"
+        width={width}
+        height={COMMIT_ROW_HEIGHT}
+        viewBox={`0 0 ${width} ${COMMIT_ROW_HEIGHT}`}
+        aria-hidden="true"
+      >
+        {row.topLanes.map((lane) => (
+          <line
+            key={`top-${lane}`}
+            className="git-graph-lane"
+            x1={laneX(lane, laneGap, laneOffset)}
+            y1={0}
+            x2={laneX(lane, laneGap, laneOffset)}
+            y2={middle}
+          />
+        ))}
+        {!row.startsHere && (
+          <line
+            className="git-graph-lane"
+            x1={commitX}
+            y1={0}
+            x2={commitX}
+            y2={middle}
+          />
+        )}
+        {row.bottomLanes.map((lane) => (
+          <line
+            key={`bottom-${lane}`}
+            className="git-graph-lane"
+            x1={laneX(lane, laneGap, laneOffset)}
+            y1={middle}
+            x2={laneX(lane, laneGap, laneOffset)}
+            y2={COMMIT_ROW_HEIGHT}
+          />
+        ))}
+        {row.edges.map((edge, index) => {
+          const fromX = laneX(edge.fromLane, laneGap, laneOffset);
+          const toX = laneX(edge.toLane, laneGap, laneOffset);
+          if (edge.kind === "straight") {
+            return (
+              <line
+                key={`edge-${index}`}
+                className="git-graph-lane"
+                x1={fromX}
+                y1={middle}
+                x2={toX}
+                y2={COMMIT_ROW_HEIGHT}
+              />
+            );
+          }
+          return (
+            <path
+              key={`edge-${index}`}
+              className="git-graph-lane"
+              d={`M ${fromX} ${middle} C ${fromX} ${middle + 8}, ${toX} ${middle + 7}, ${toX} ${COMMIT_ROW_HEIGHT}`}
+            />
+          );
+        })}
+      </svg>
+      <span
+        className="git-graph-node"
+        data-head={isHead || undefined}
+        style={{ left: `${commitX}px` }}
+      />
+    </span>
+  );
+}
+
 function commitMatches(commit: GitCommitSummary, rawQuery: string): boolean {
   const query = rawQuery.trim().toLocaleLowerCase();
   if (!query) return false;
@@ -299,6 +406,7 @@ function CommitList({
   loadingMore,
   query,
   expandedHash,
+  experimentalGraph,
   scrollRef,
   onLoadMore,
   onToggleCommit,
@@ -314,6 +422,7 @@ function CommitList({
   loadingMore: boolean;
   query: string;
   expandedHash: string | null;
+  experimentalGraph: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
   onLoadMore: () => void;
   onToggleCommit: (hash: string) => void;
@@ -329,6 +438,21 @@ function CommitList({
     () => commits.map((commit) => commitMatches(commit, query)),
     [commits, query],
   );
+  const graphRows = useMemo(
+    () => experimentalGraph ? layoutCommitGraph(commits) : [],
+    [commits, experimentalGraph],
+  );
+  const maxLaneCount = graphRows.reduce(
+    (maximum, row) => Math.max(maximum, row.laneCount),
+    1,
+  );
+  const graphWidth = experimentalGraph
+    ? Math.min(GRAPH_MAX_WIDTH, GRAPH_WIDTH + (maxLaneCount - 1) * GRAPH_LANE_GAP)
+    : GRAPH_WIDTH;
+  const laneGap = maxLaneCount <= 1
+    ? 0
+    : Math.min(GRAPH_LANE_GAP, (graphWidth - GRAPH_WIDTH) / (maxLaneCount - 1));
+  const laneOffset = GRAPH_LANE_ORIGIN;
   const virtualizer = useVirtualizer({
     count: listItems.length,
     getScrollElement: () => scrollRef.current,
@@ -374,6 +498,7 @@ function CommitList({
     <div className="git-history-scroll" ref={scrollRef} role="list">
       <div
         className="git-history-virtual"
+        data-graph={experimentalGraph || undefined}
         style={{ height: `${virtualizer.getTotalSize()}px` }}
       >
         {activeDate && (
@@ -474,6 +599,7 @@ function CommitList({
           const { commit, commitIndex, showAuthor } = item;
           const isMerge = commit.parents.length > 1;
           const isHead = commit.refs.some((ref) => ref.isHead);
+          const graphRow = graphRows[commitIndex];
           const isExpanded = expandedHash === commit.hash;
           const expansionId = `git-commit-files-${commit.hash}`;
           return (
@@ -494,12 +620,26 @@ function CommitList({
                 data-head={isHead || undefined}
                 data-merge={isMerge || undefined}
                 data-expanded={isExpanded || undefined}
+                data-graph={experimentalGraph || undefined}
+                style={{ "--git-graph-width": `${graphWidth}px` } as CSSProperties}
                 onClick={() => onToggleCommit(commit.hash)}
                 title={isExpanded ? "Collapse changed files" : "Show changed files"}
               >
-                <span className="git-graph-node-cell">
-                  <span className="git-graph-node" data-head={isHead || undefined} />
-                </span>
+                {experimentalGraph && graphRow
+                  ? (
+                    <GraphCell
+                      row={graphRow}
+                      width={graphWidth}
+                      laneGap={laneGap}
+                      laneOffset={laneOffset}
+                      isHead={isHead}
+                    />
+                  )
+                  : (
+                    <span className="git-graph-node-cell">
+                      <span className="git-graph-node" data-head={isHead || undefined} />
+                    </span>
+                  )}
                 <Icon name="ChevronRight" className="git-commit-expand-icon" aria-hidden="true" />
                 <span className="git-commit-copy">
                   <CommitSubject subject={commit.subject} />
@@ -516,6 +656,11 @@ function CommitList({
                   id={expansionId}
                   threadId={threadId}
                   commit={commit}
+                  experimentalGraph={experimentalGraph}
+                  graphWidth={graphWidth}
+                  graphRow={graphRow}
+                  laneGap={laneGap}
+                  laneOffset={laneOffset}
                   onOpenDiff={onOpenDiff}
                 />
               )}
@@ -536,16 +681,21 @@ function CommitList({
 function statusLetter(status: GitFileChange["status"]): string {
   switch (status) {
     case "added":
-    case "copied":
       return "A";
+    case "conflicted":
+      return "U";
+    case "copied":
+      return "C";
     case "deleted":
       return "D";
     case "renamed":
       return "R";
     case "type-changed":
+      return "T";
     case "modified":
-    case "unknown":
       return "M";
+    case "unknown":
+      return "?";
   }
 }
 
@@ -572,11 +722,21 @@ function InlineCommitFiles({
   id,
   threadId,
   commit,
+  experimentalGraph,
+  graphWidth,
+  graphRow,
+  laneGap,
+  laneOffset,
   onOpenDiff,
 }: {
   id: string;
   threadId: string;
   commit: GitCommitSummary;
+  experimentalGraph: boolean;
+  graphWidth: number;
+  graphRow: GraphRow | undefined;
+  laneGap: number;
+  laneOffset: number;
   onOpenDiff: (commit: GitCommitSummary, details: CommitDetails, path: string) => void;
 }) {
   const rpc = useRpc<typeof rpcContract>();
@@ -601,15 +761,43 @@ function InlineCommitFiles({
   }, [commit.hash, rpc, threadId]);
 
   const totals = details ? changeTotals(details.files) : null;
+  const continuationLanes = graphRow
+    ? Array.from(new Set([
+      ...graphRow.bottomLanes,
+      ...graphRow.edges.map((edge) => edge.toLane),
+    ]))
+    : [];
 
   return (
     <div
       className="git-commit-expansion"
       id={id}
       role="region"
-      aria-label={`Files changed in ${commit.subject || commit.hash.slice(0, 8)}`}
-      style={{ marginLeft: `${GRAPH_WIDTH}px` }}
+      aria-label={`Details for ${commit.subject || commit.hash.slice(0, 8)}`}
+      style={{ marginLeft: `${graphWidth}px` }}
     >
+      {experimentalGraph && continuationLanes.length > 0 && (
+        <svg
+          className="git-expansion-graph"
+          width={graphWidth}
+          height="100%"
+          viewBox={`0 0 ${graphWidth} 100`}
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          {continuationLanes.map((lane) => (
+            <line
+              key={lane}
+              className="git-graph-lane"
+              x1={laneX(lane, laneGap, laneOffset)}
+              y1={0}
+              x2={laneX(lane, laneGap, laneOffset)}
+              y2={100}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </svg>
+      )}
       {detailsError && <div className="git-inline-error" role="alert">{detailsError}</div>}
       {!details && !detailsError && (
         <div className="git-detail-loading" role="status">
@@ -620,6 +808,18 @@ function InlineCommitFiles({
 
       {details && (
         <section className="git-files">
+          <div className="git-commit-details">
+            <div className="git-commit-details-meta">
+              <code title={details.hash}>{details.hash}</code>
+              <span title={details.authorEmail}>
+                {details.authorName} &lt;{details.authorEmail}&gt;
+              </span>
+              <time dateTime={details.authorDate}>{exactDateTime(details.authorDate)}</time>
+            </div>
+            {details.body.trim() && (
+              <pre className="git-commit-body">{details.body.trimEnd()}</pre>
+            )}
+          </div>
           <div className="git-files-summary">
             <span>{details.files.length} {details.files.length === 1 ? "file" : "files"}</span>
             <span className="git-stat-added">+{totals?.additions ?? 0}</span>
@@ -795,6 +995,7 @@ function FileDiffPanel({
 
 function GitHistoryPanel({ threadId }: { threadId: string }) {
   const rpc = useRpc<typeof rpcContract>();
+  const { values: settings } = useSettings();
   const [page, setPage] = useState<HistoryPage | null>(null);
   const [commits, setCommits] = useState<GitCommitSummary[]>([]);
   const [query, setQuery] = useState("");
@@ -841,19 +1042,35 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
             offset: pageOffset,
             limit,
           });
-        const result = reset
+        let replaceCommits = reset;
+        let result = reset
           ? await fetchHistorySnapshot(
             fetchPage,
             options?.silent ? Math.max(commits.length, PAGE_SIZE) : PAGE_SIZE,
             PAGE_SIZE,
           )
           : await fetchPage(offset, PAGE_SIZE);
+        if (
+          !reset
+          && historyRevisionRef.current !== null
+          && result.revision !== historyRevisionRef.current
+        ) {
+          if (scrollRef.current) {
+            pendingScrollRestore.current = scrollRef.current.scrollTop;
+          }
+          result = await fetchHistorySnapshot(
+            fetchPage,
+            Math.max(commits.length, PAGE_SIZE),
+            PAGE_SIZE,
+          );
+          replaceCommits = true;
+        }
         if (sequence !== requestSequence.current) return;
         setPage(result);
         historyRevisionRef.current = result.revision;
         setError(result.unavailableReason);
         setCommits((current) => {
-          if (reset) return result.commits;
+          if (replaceCommits) return result.commits;
           const known = new Set(current.map((commit) => commit.hash));
           return [
             ...current,
@@ -1041,6 +1258,7 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
           loadingMore={loadingMore}
           query={query}
           expandedHash={expandedHash}
+          experimentalGraph={settings?.experimentalCommitGraph === true}
           scrollRef={scrollRef}
           onLoadMore={() => void loadHistory(false)}
           onToggleCommit={(hash) => {

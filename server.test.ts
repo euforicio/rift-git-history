@@ -63,6 +63,12 @@ describe("Git history server", () => {
       description: "Show Git History beside the editor controls. Git History remains available from New tab.",
       default: false,
     });
+    expect(harness.registrations.settingsDescriptors.experimentalCommitGraph).toEqual({
+      type: "boolean",
+      label: "Experimental commit graph",
+      description: "Show colored branch and merge lanes in Git History.",
+      default: false,
+    });
 
     const result = (await harness.behavior.callRpc("history", {
       threadId: "thread-1",
@@ -104,5 +110,7 @@ describe("Git history server", () => {
         path: "README.md",
       },
     });
+
+    await harness.lifecycle.dispose();
   });
 });

@@ -29,6 +29,8 @@
     "graph.ts",
     "graph.test.ts",
     "app.tsx",
+    "app.test.tsx",
+    "sdk-boundary.test.ts",
     "components",
     "lib",
     "hooks"

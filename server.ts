@@ -47,6 +47,12 @@ export default function plugin(bb: BbPluginApi) {
       description: "Show Git History beside the editor controls. Git History remains available from New tab.",
       default: false,
     },
+    experimentalCommitGraph: {
+      type: "boolean",
+      label: "Experimental commit graph",
+      description: "Show colored branch and merge lanes in Git History.",
+      default: false,
+    },
   });
 
   bb.rpc.register(rpcContract, {

@@ -11,7 +11,8 @@ import type {
 } from "./contracts";
 import { hostContract } from "./contracts";
 
-const HISTORY_FIELD_COUNT = 8;
+const SUMMARY_FIELD_COUNT = 7;
+const DETAIL_FIELD_COUNT = 8;
 const MAX_GIT_OUTPUT_BYTES = 32 * 1024 * 1024;
 const MAX_PATCH_CHARS = 1_500_000;
 const HIDDEN_REF_NAMESPACES = ["refs/t3/checkpoints"] as const;
@@ -31,6 +32,7 @@ function runGit(
   cwd: string,
   args: string[],
   signal: AbortSignal,
+  acceptedExitCodes: readonly number[] = [],
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
@@ -44,7 +46,8 @@ function runGit(
         windowsHide: true,
       },
       (error, stdout, stderr) => {
-        if (error) {
+        const exitCode = error && typeof error.code === "number" ? error.code : null;
+        if (error && (exitCode === null || !acceptedExitCodes.includes(exitCode))) {
           const detail = stderr.trim();
           reject(new Error(detail || error.message));
           return;
@@ -198,22 +201,21 @@ async function readRefs(
   };
 }
 
-function parseCommitFields(
+function parseCommitSummaries(
   raw: string,
   refsByHash: Map<string, GitRef[]>,
-): Array<GitCommitSummary & { body: string }> {
+): GitCommitSummary[] {
   const fields = raw.split("\0");
-  const commits: Array<GitCommitSummary & { body: string }> = [];
+  const commits: GitCommitSummary[] = [];
 
   for (
     let index = 0;
-    index + HISTORY_FIELD_COUNT - 1 < fields.length;
-    index += HISTORY_FIELD_COUNT
+    index + SUMMARY_FIELD_COUNT - 1 < fields.length;
+    index += SUMMARY_FIELD_COUNT
   ) {
     const hash = fields[index]?.trim();
     if (!hash) continue;
     const parentField = fields[index + 1] ?? "";
-    const body = fields[index + 7] ?? "";
 
     commits.push({
       hash,
@@ -224,14 +226,34 @@ function parseCommitFields(
       committerDate: fields[index + 5] ?? "",
       subject: fields[index + 6] ?? "",
       refs: refsByHash.get(hash) ?? [],
-      body,
     });
   }
 
   return commits;
 }
 
-const HISTORY_FORMAT = ["%H", "%P", "%an", "%ae", "%aI", "%cI", "%s", "%B"].join(
+function parseCommitDetail(
+  raw: string,
+  refsByHash: Map<string, GitRef[]>,
+): (GitCommitSummary & { body: string }) | null {
+  const fields = raw.split("\0");
+  if (fields.length < DETAIL_FIELD_COUNT) return null;
+  const summary = parseCommitSummaries(
+    fields.slice(0, SUMMARY_FIELD_COUNT).join("\0") + "\0",
+    refsByHash,
+  )[0];
+  if (!summary) return null;
+  return {
+    ...summary,
+    body: fields[SUMMARY_FIELD_COUNT] ?? "",
+  };
+}
+
+const SUMMARY_FORMAT = ["%H", "%P", "%an", "%ae", "%aI", "%cI", "%s"].join(
+  "%x00",
+) + "%x00";
+
+const DETAIL_FORMAT = ["%H", "%P", "%an", "%ae", "%aI", "%cI", "%s", "%b"].join(
   "%x00",
 ) + "%x00";
 
@@ -310,7 +332,8 @@ function parseWorkingTreeStatuses(
     if (!path) continue;
 
     let status: GitFileChange["status"] = "unknown";
-    if (code === "??" || code.includes("A")) status = "added";
+    if (code.includes("U") || code === "AA" || code === "DD") status = "conflicted";
+    else if (code === "??" || code.includes("A")) status = "added";
     else if (code.includes("D")) status = "deleted";
     else if (code.includes("R")) status = "renamed";
     else if (code.includes("C")) status = "copied";
@@ -459,11 +482,11 @@ async function readCommitDetails(
   const { byHash } = await readRefs(repoRoot, signal);
   const rawCommit = await runGit(
     repoRoot,
-    ["show", "-s", `--format=${HISTORY_FORMAT}`, hash],
+    ["show", "-s", `--format=${DETAIL_FORMAT}`, hash],
     signal,
   );
 
-  const commit = parseCommitFields(rawCommit, byHash)[0];
+  const commit = parseCommitDetail(rawCommit, byHash);
   if (!commit) throw new Error(`Commit ${hash} was not found.`);
 
   const diffArgs = commit.parents[0]
@@ -503,7 +526,7 @@ export default experimental_defineHostEntry({
             "--topo-order",
             `--max-count=${limit + 1}`,
             `--skip=${offset}`,
-            `--format=${HISTORY_FORMAT}`,
+            `--format=${SUMMARY_FORMAT}`,
           ],
           context.signal,
         ),
@@ -515,9 +538,9 @@ export default experimental_defineHostEntry({
         readWorkingTreeFiles(repoRoot, context.signal),
       ]);
 
-      const parsed = parseCommitFields(rawHistory, byHash);
+      const parsed = parseCommitSummaries(rawHistory, byHash);
       const hasMore = parsed.length > limit;
-      const commits = parsed.slice(0, limit).map(({ body: _body, ...commit }) => commit);
+      const commits = parsed.slice(0, limit);
       const revision = buildHistoryRevision(
         headHash,
         currentBranch,
@@ -584,25 +607,48 @@ export default experimental_defineHostEntry({
         throw new Error(`Uncommitted file ${path} was not found.`);
       }
 
-      const headHash = await runGitOptional(
-        repoRoot,
-        ["rev-parse", "--verify", "HEAD"],
-        context.signal,
-      );
-      const rawPatch = await runGit(
-        repoRoot,
-        [
-          "diff",
-          "--no-renames",
-          "--no-color",
-          "--no-ext-diff",
-          "--unified=3",
-          ...(headHash ? ["HEAD"] : ["--cached"]),
-          "--",
-          path,
-        ],
-        context.signal,
-      );
+      const [headHash, trackedPath] = await Promise.all([
+        runGitOptional(
+          repoRoot,
+          ["rev-parse", "--verify", "HEAD"],
+          context.signal,
+        ),
+        runGitOptional(
+          repoRoot,
+          ["ls-files", "--error-unmatch", "--", path],
+          context.signal,
+        ),
+      ]);
+      const rawPatch = headHash && trackedPath !== null
+        ? await runGit(
+          repoRoot,
+          [
+            "diff",
+            "--no-renames",
+            "--no-color",
+            "--no-ext-diff",
+            "--unified=3",
+            "HEAD",
+            "--",
+            path,
+          ],
+          context.signal,
+        )
+        : await runGit(
+          repoRoot,
+          [
+            "diff",
+            "--no-index",
+            "--no-color",
+            "--no-ext-diff",
+            "--unified=3",
+            "--",
+            "/dev/null",
+            path,
+          ],
+          context.signal,
+          [1],
+        );
       const truncated = rawPatch.length > MAX_PATCH_CHARS;
       return {
         path,

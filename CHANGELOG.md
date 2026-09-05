@@ -2,6 +2,22 @@
 
 All notable changes to Git History are documented here.
 
+## Unreleased
+
+### Added
+
+- An opt-in experimental commit graph adds branch and merge lanes while keeping
+  the compact history palette and commit markers.
+- Expanded commits show the complete message and precise author metadata.
+- Frontend registration and behavior now have automated test coverage.
+
+### Fixed
+
+- Untracked files now produce new-file patches in the diff viewer.
+- Unmerged working-tree paths are labeled as conflicts.
+- Multi-page refreshes restart when the repository changes instead of mixing revisions.
+- History pages no longer read and discard every commit body.
+
 ## [0.3.0] - 2026-08-28
 
 ### Added

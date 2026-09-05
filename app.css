@@ -1,10 +1,4 @@
 .git-history-panel {
-  --git-lane-0: light-dark(#2563eb, #60a5fa);
-  --git-lane-1: light-dark(#ea580c, #fb923c);
-  --git-lane-2: light-dark(#db2777, #f472b6);
-  --git-lane-3: light-dark(#0f9f9a, #5eead4);
-  --git-lane-4: light-dark(#9333ea, #c084fc);
-  --git-lane-5: light-dark(#a16207, #facc15);
   --git-ref-head-bg: light-dark(#2563eb, #1d4ed8);
   --git-ref-remote-bg: light-dark(#c2410c, #9a3412);
   --git-ref-tag-bg: light-dark(#7e22ce, #6b21a8);
@@ -180,33 +174,9 @@
   stroke-linecap: round;
 }
 
-.git-commit-node {
-  stroke-linecap: round;
+.git-graph-lane {
+  color: var(--gh-rail);
 }
-
-.git-commit-node-solid {
-  fill: currentColor;
-  stroke: var(--background);
-  stroke-width: 1.5;
-}
-
-.git-commit-node-ring {
-  fill: var(--background);
-  stroke: currentColor;
-  stroke-width: 2.25;
-}
-
-.git-commit-node-core {
-  fill: currentColor;
-  stroke: none;
-}
-
-.git-lane-0 { color: var(--git-lane-0); }
-.git-lane-1 { color: var(--git-lane-1); }
-.git-lane-2 { color: var(--git-lane-2); }
-.git-lane-3 { color: var(--git-lane-3); }
-.git-lane-4 { color: var(--git-lane-4); }
-.git-lane-5 { color: var(--git-lane-5); }
 
 .git-commit-copy {
   min-width: 0;
@@ -662,6 +632,10 @@
   background: var(--gh-rail);
 }
 
+.git-history-virtual[data-graph="true"]::before {
+  display: none;
+}
+
 .git-date-listitem,
 .git-commit-listitem,
 .git-uncommitted-header-listitem,
@@ -799,6 +773,36 @@
   background: transparent;
   color: inherit;
   text-align: left;
+}
+
+/* Graph mode keeps the compact row geometry (gap, marker, rail colour) and only
+   widens the first column when the history needs more than one lane. */
+.git-commit-row[data-graph="true"] {
+  grid-template-columns: var(--git-graph-width) minmax(0, 1fr) auto;
+}
+
+.git-commit-row[data-graph="true"] .git-commit-expand-icon {
+  left: calc(var(--git-graph-width) + 4px);
+}
+
+.git-graph-node-cell[data-graph="true"] {
+  position: relative;
+  width: var(--git-graph-width);
+  height: 100%;
+  align-self: stretch;
+}
+
+.git-graph-node-cell[data-graph="true"] .git-graph-cell {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+}
+
+.git-graph-node-cell[data-graph="true"] .git-graph-node {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .git-commit-row:hover,
@@ -1051,7 +1055,7 @@
 .git-commit-expansion {
   position: relative;
   z-index: 2;
-  overflow: hidden;
+  overflow: visible;
   border: 0;
   padding: 0 12px 8px 0;
   background: var(--gh-surface-sunken);
@@ -1059,6 +1063,39 @@
 
 .git-commit-expansion .git-files {
   border: 0;
+}
+
+.git-commit-details {
+  border-bottom: 1px solid var(--gh-hairline);
+  padding: 8px 0;
+}
+
+.git-commit-details-meta {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--gh-tertiary);
+  font-size: 10.5px;
+}
+
+.git-commit-details-meta code {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--gh-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.git-commit-body {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--gh-text);
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1.45;
 }
 
 .git-files-summary {
@@ -1137,6 +1174,11 @@
 .git-file-status-type-changed,
 .git-file-status-unknown {
   color: var(--gh-modified);
+}
+
+.git-file-status-conflicted {
+  color: var(--gh-removed);
+  font-weight: 650;
 }
 
 .git-file-status-renamed {

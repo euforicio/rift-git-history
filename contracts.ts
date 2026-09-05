@@ -26,7 +26,16 @@ export const gitCommitSummarySchema = z
 export const gitFileChangeSchema = z
   .object({
     path: z.string(),
-    status: z.enum(["added", "copied", "deleted", "modified", "renamed", "type-changed", "unknown"]),
+    status: z.enum([
+      "added",
+      "conflicted",
+      "copied",
+      "deleted",
+      "modified",
+      "renamed",
+      "type-changed",
+      "unknown",
+    ]),
     additions: z.number().int().nonnegative().nullable(),
     deletions: z.number().int().nonnegative().nullable(),
   })
