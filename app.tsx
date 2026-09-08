@@ -11,10 +11,10 @@ import {
 import {
   definePluginApp,
   experimental_Diff as Diff,
-  useBbNavigate,
+  useRiftNavigate,
   useRpc,
   useSettings,
-} from "@get-bb/plugin-sdk/app";
+} from "@riftlabs/plugin-sdk/app";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
 import type { rpcContract } from "./server";
@@ -1305,7 +1305,7 @@ function GitHistoryPanel({ threadId }: { threadId: string }) {
 }
 
 function GitHistoryHeaderAction({ threadId }: { threadId: string }) {
-  const navigate = useBbNavigate();
+  const navigate = useRiftNavigate();
   const { values } = useSettings();
   if (values?.showHeaderShortcut !== true) return null;
 

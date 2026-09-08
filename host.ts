@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { lstat } from "node:fs/promises";
 import { basename, isAbsolute, join } from "node:path";
-import { experimental_defineHostEntry } from "@get-bb/plugin-sdk/host";
+import { experimental_defineHostEntry } from "@riftlabs/plugin-sdk/host";
 import type {
   CommitDetails,
   GitCommitSummary,

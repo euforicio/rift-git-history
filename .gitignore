@@ -31,3 +31,7 @@ Thumbs.db
 
 # Local agent instructions
 AGENTS.md
+
+node_modules/
+node_modules.dev/
+toolchain-*/

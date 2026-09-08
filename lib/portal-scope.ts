@@ -4,10 +4,10 @@
  * this file differs). Everything a plugin renders is plugin-scoped, so the
  * scope attributes are unconditional: portaled overlay content (dialog,
  * select, popover, …) lands in document.body, outside the plugin's
- * `[data-bb-plugin]` mount, and must carry its own scope root for the
- * plugin's compiled stylesheet (`:where([data-bb-plugin="<id>"], …)`) to
+ * `[data-rift-plugin]` mount, and must carry its own scope root for the
+ * plugin's compiled stylesheet (`:where([data-rift-plugin="<id>"], …)`) to
  * reach it. `__BB_PLUGIN_ID__` is an esbuild define stamped by
- * `bb plugin build`; outside that pipeline (registry copies, tests) it is
+ * `rift plugin build`; outside that pipeline (registry copies, tests) it is
  * undefined and the generic root attribute alone keeps legacy behavior. In
  * the host app the same hook reads the plugin-slot context instead, so host
  * overlays stay out of plugin scopes. The portaled-overlay marker is shared
@@ -17,15 +17,15 @@
 declare const __BB_PLUGIN_ID__: string | undefined;
 
 export function usePortalScopeProps(): {
-  "data-bb-portaled-overlay": "";
-  "data-bb-plugin-root"?: "";
-  "data-bb-plugin"?: string;
+  "data-rift-portaled-overlay": "";
+  "data-rift-plugin-root"?: "";
+  "data-rift-plugin"?: string;
 } {
   const pluginId =
     typeof __BB_PLUGIN_ID__ === "string" ? __BB_PLUGIN_ID__ : undefined;
   return {
-    "data-bb-portaled-overlay": "",
-    "data-bb-plugin-root": "",
-    ...(pluginId !== undefined ? { "data-bb-plugin": pluginId } : {}),
+    "data-rift-portaled-overlay": "",
+    "data-rift-plugin-root": "",
+    ...(pluginId !== undefined ? { "data-rift-plugin": pluginId } : {}),
   };
 }

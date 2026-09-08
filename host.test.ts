@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { experimental_createHostEntryHarness } from "@get-bb/plugin-sdk/testing/host";
+import { experimental_createHostEntryHarness } from "@riftlabs/plugin-sdk/testing/host";
 import hostEntry from "./host";
 
 function git(repo: string, ...args: string[]): string {
@@ -19,7 +19,7 @@ describe("Git history host entry", () => {
   let checkpointHash = "";
 
   beforeAll(() => {
-    repo = mkdtempSync(join(tmpdir(), "bb-git-history-test-"));
+    repo = mkdtempSync(join(tmpdir(), "rift-git-history-test-"));
     git(repo, "init", "-b", "main");
     git(repo, "config", "user.name", "History Test");
     git(repo, "config", "user.email", "history@example.com");
@@ -214,7 +214,7 @@ describe("Git history host entry", () => {
   });
 
   it("reports unmerged working-tree paths as conflicted", async () => {
-    const conflictRepo = mkdtempSync(join(tmpdir(), "bb-git-history-conflict-test-"));
+    const conflictRepo = mkdtempSync(join(tmpdir(), "rift-git-history-conflict-test-"));
     try {
       git(conflictRepo, "init", "-b", "main");
       git(conflictRepo, "config", "user.name", "History Test");

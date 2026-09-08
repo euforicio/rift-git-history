@@ -1,4 +1,4 @@
-import type { BbPluginApi } from "@get-bb/plugin-sdk";
+import type { RiftPluginApi } from "@riftlabs/plugin-sdk";
 import { hostContract, rpcContract } from "./contracts";
 
 export { rpcContract } from "./contracts";
@@ -11,10 +11,10 @@ interface RepositoryTarget {
 class RepositoryUnavailableError extends Error {}
 
 async function repositoryForThread(
-  bb: BbPluginApi,
+  rift: RiftPluginApi,
   threadId: string,
 ): Promise<RepositoryTarget> {
-  const thread = await bb.sdk.threads.get({
+  const thread = await rift.sdk.threads.get({
     threadId,
     include: "environment",
   });
@@ -37,10 +37,10 @@ async function repositoryForThread(
   };
 }
 
-export default function plugin(bb: BbPluginApi) {
-  const host = bb.hosts.experimental_client({ contract: hostContract });
+export default function plugin(rift: RiftPluginApi) {
+  const host = rift.hosts.experimental_client({ contract: hostContract });
 
-  bb.settings.define({
+  rift.settings.define({
     showHeaderShortcut: {
       type: "boolean",
       label: "Show thread header shortcut",
@@ -55,10 +55,10 @@ export default function plugin(bb: BbPluginApi) {
     },
   });
 
-  bb.rpc.register(rpcContract, {
+  rift.rpc.register(rpcContract, {
     async history({ threadId, offset, limit }) {
       try {
-        const target = await repositoryForThread(bb, threadId);
+        const target = await repositoryForThread(rift, threadId);
         return await host.call(
           "history",
           { repoPath: target.repoPath, offset, limit },
@@ -82,7 +82,7 @@ export default function plugin(bb: BbPluginApi) {
 
     async historyRevision({ threadId }) {
       try {
-        const target = await repositoryForThread(bb, threadId);
+        const target = await repositoryForThread(rift, threadId);
         return await host.call(
           "historyRevision",
           { repoPath: target.repoPath },
@@ -98,7 +98,7 @@ export default function plugin(bb: BbPluginApi) {
     },
 
     async details({ threadId, hash }) {
-      const target = await repositoryForThread(bb, threadId);
+      const target = await repositoryForThread(rift, threadId);
       return host.call(
         "details",
         { repoPath: target.repoPath, hash },
@@ -107,7 +107,7 @@ export default function plugin(bb: BbPluginApi) {
     },
 
     async patch({ threadId, hash, path }) {
-      const target = await repositoryForThread(bb, threadId);
+      const target = await repositoryForThread(rift, threadId);
       return host.call(
         "patch",
         { repoPath: target.repoPath, hash, path },
@@ -116,7 +116,7 @@ export default function plugin(bb: BbPluginApi) {
     },
 
     async workingPatch({ threadId, path }) {
-      const target = await repositoryForThread(bb, threadId);
+      const target = await repositoryForThread(rift, threadId);
       return host.call(
         "workingPatch",
         { repoPath: target.repoPath, path },
@@ -125,5 +125,5 @@ export default function plugin(bb: BbPluginApi) {
     },
   });
 
-  bb.log.info("Git History loaded");
+  rift.log.info("Git History loaded");
 }

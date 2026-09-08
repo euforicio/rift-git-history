@@ -1,0 +1,10 @@
+{
+  "builder": "rift plugin build@0.42.1",
+  "sourceRepository": "https://github.com/euforicio/rift-app",
+  "sourceCommit": "edc8f6fc3d35f18ac267c6ece44ca57df4074577",
+  "sourcePath": "packages/plugin-build",
+  "buildCommand": "node scripts/build-node-entry.mjs packages/plugin-build/src/index.ts <bundle>",
+  "outputNormalization": "Remove source map reference and normalize source checkout prefix to repository-relative module labels.",
+  "bundle": "rift-plugin-build-0.42.1.mjs",
+  "sha256": "21e91c46a58cfdc2540eef5a86eddd09dc9166e241916786bfc7e62fe23dd4f2"
+}

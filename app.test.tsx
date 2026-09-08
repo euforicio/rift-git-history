@@ -5,8 +5,8 @@ import {
   loadPluginApp,
   renderSlot,
   type CapturedPluginApp,
-} from "@get-bb/plugin-sdk/testing/app";
-import type { PluginThreadPanelProps } from "@get-bb/plugin-sdk";
+} from "@riftlabs/plugin-sdk/testing/app";
+import type { PluginThreadPanelProps } from "@riftlabs/plugin-sdk";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { CommitDetails, HistoryPage } from "./contracts";
 import type { rpcContract } from "./server";

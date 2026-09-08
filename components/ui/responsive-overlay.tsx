@@ -365,7 +365,7 @@ function activeElementIsInAnotherOverlay(
   panel: HTMLElement,
 ): boolean {
   const overlay = activeElement?.closest<HTMLElement>(
-    "[data-bb-portaled-overlay]",
+    "[data-rift-portaled-overlay]",
   );
   return overlay !== null && overlay !== undefined && overlay !== panel;
 }
@@ -676,7 +676,7 @@ export function PersistentResponsiveDrawerShell({
         }
         aria-describedby={describedBy}
         aria-modal={open || undefined}
-        data-bb-portaled-overlay=""
+        data-rift-portaled-overlay=""
         data-persistent-drawer-content=""
         data-state={open ? "open" : "closed"}
         inert={!open}

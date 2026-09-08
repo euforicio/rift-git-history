@@ -1,7 +1,7 @@
 import {
   createFakePluginHost,
   makeThreadResponse,
-} from "@get-bb/plugin-sdk/testing";
+} from "@riftlabs/plugin-sdk/testing";
 import { describe, expect, it } from "vitest";
 import type { HistoryPage } from "./contracts";
 import plugin from "./server";
@@ -44,7 +44,7 @@ describe("Git history server", () => {
       revision: "abc123\0main\0",
       unavailableReason: null,
     };
-    const { bb, harness } = createFakePluginHost({
+    const { rift, harness } = createFakePluginHost({
       pluginId: "git-history",
       sdk: {
         threads: {
@@ -55,7 +55,7 @@ describe("Git history server", () => {
         ? { path: "README.md", patch: "@@ -1 +1,2 @@", truncated: false }
         : historyPage,
     });
-    plugin(bb);
+    plugin(rift);
 
     expect(harness.registrations.settingsDescriptors.showHeaderShortcut).toEqual({
       type: "boolean",
